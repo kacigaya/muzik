@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { parseProgress } from "./progress.ts";
 import { organizeFiles, safeMusicPath } from "./metadata.ts";
+import { musicDir } from "./settings.ts";
 import type { CreateJobRequest, DownloadJob } from "./types.ts";
 
 const exec = promisify(execFile);
@@ -56,7 +57,6 @@ export class JobStore {
   private lastPersistedProgress = -1;
   private readonly dataDir = process.env.MUZIK_DATA_DIR ?? "/srv/muzik/data";
   private readonly tempDir = process.env.MUZIK_TEMP_DIR ?? "/srv/muzik/tmp";
-  private readonly musicDir = process.env.MUZIK_MUSIC_DIR ?? "/srv/media-rw/Music";
   private readonly ytDlp = process.env.MUZIK_YTDLP ?? `${process.cwd()}/.venv/bin/yt-dlp`;
   private readonly containerCli = process.env.MUZIK_CONTAINER_CLI ?? "podman";
   // Both are opt-in: without a VPN container yt-dlp uses the host network, and without a
@@ -99,6 +99,7 @@ export class JobStore {
   }
 
   async create(request: CreateJobRequest) {
+    if (!(await musicDir())) throw new Error("Choose a music folder before downloading.");
     await this.load();
     const duplicate = this.jobs.find(
       (job) => job.kind === request.kind && job.sourceId === request.sourceId && ["queued", "running"].includes(job.status),
@@ -194,7 +195,7 @@ export class JobStore {
     }
   }
 
-  private args(job: DownloadJob) {
+  private args(job: DownloadJob, musicRoot: string) {
     const jobTemp = join(this.tempDir, job.id);
     return [
       "--newline",
@@ -203,7 +204,7 @@ export class JobStore {
       "--ignore-errors",
       "--js-runtimes", `node:${process.execPath}`,
       "--download-archive", join(this.dataDir, "downloaded.txt"),
-      "--paths", `home:${this.musicDir}`,
+      "--paths", `home:${musicRoot}`,
       "--paths", `temp:${jobTemp}`,
       "--output", "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s",
       "--format", "bestaudio[ext=m4a]/bestaudio",
@@ -219,18 +220,26 @@ export class JobStore {
     ];
   }
 
-  private async downloaderProcess(job: DownloadJob) {
+  private async downloaderProcess(job: DownloadJob, musicRoot: string) {
     const options: Parameters<typeof spawn>[2] = { detached: true, stdio: ["ignore", "pipe", "pipe"] };
     if (!this.vpnContainer) {
-      return spawn(this.ytDlp, this.args(job), options);
+      return spawn(this.ytDlp, this.args(job, musicRoot), options);
     }
     const { stdout } = await exec("sudo", ["-n", this.containerCli, "inspect", "--format", "{{.State.Pid}}", this.vpnContainer], { timeout: 5_000 });
     const networkPid = stdout.trim();
     if (!/^\d+$/.test(networkPid) || networkPid === "0") throw new Error("Download VPN is unavailable.");
-    return spawn("sudo", ["-n", "nsenter", "--target", networkPid, "--net", "--", this.ytDlp, ...this.args(job)], options);
+    return spawn("sudo", ["-n", "nsenter", "--target", networkPid, "--net", "--", this.ytDlp, ...this.args(job, musicRoot)], options);
   }
 
   private async download(job: DownloadJob) {
+    const musicRoot = await musicDir();
+    if (!musicRoot) {
+      job.status = "failed";
+      job.error = "No music folder is configured yet.";
+      job.updatedAt = now();
+      await this.persist();
+      return;
+    }
     job.status = "running";
     job.updatedAt = now();
     this.activeJobId = job.id;
@@ -240,7 +249,7 @@ export class JobStore {
     const downloadedFiles = new Set<string>();
     let child: ReturnType<typeof spawn>;
     try {
-      child = await this.downloaderProcess(job);
+      child = await this.downloaderProcess(job, musicRoot);
     } catch (cause) {
       job.status = "failed";
       job.error = cause instanceof Error ? cause.message : "Download VPN is unavailable.";
@@ -259,7 +268,7 @@ export class JobStore {
       for (const line of lines) {
         if (line.startsWith("muzik-file:")) {
           job.downloadedItems += 1;
-          const file = safeMusicPath(this.musicDir, line.slice("muzik-file:".length));
+          const file = safeMusicPath(musicRoot, line.slice("muzik-file:".length));
           if (file) downloadedFiles.add(file);
         }
         const progress = parseProgress(line);
@@ -283,7 +292,7 @@ export class JobStore {
     });
     if (stdout.startsWith("muzik-file:")) {
       job.downloadedItems += 1;
-      const file = safeMusicPath(this.musicDir, stdout.slice("muzik-file:".length).trim());
+      const file = safeMusicPath(musicRoot, stdout.slice("muzik-file:".length).trim());
       if (file) downloadedFiles.add(file);
     }
     if (stderr.startsWith("ERROR:")) errors.push(stderr);
@@ -306,7 +315,7 @@ export class JobStore {
       job.error = safeError(errors);
     } else {
       job.status = errors.length ? "completed_with_warnings" : "completed";
-      const organized = await organizeFiles([...downloadedFiles], this.musicDir, this.dataDir);
+      const organized = await organizeFiles([...downloadedFiles], musicRoot, this.dataDir);
       if (organized.warnings.length) {
         job.metadataWarning = `Downloaded, but metadata organization had ${organized.warnings.length} warning(s).`;
       }

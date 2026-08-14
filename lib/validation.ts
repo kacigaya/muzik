@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { CreateJobRequest, SearchKind } from "./types.ts";
 
 export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -48,6 +49,19 @@ export function validateJobRequest(value: unknown): CreateJobRequest {
     subtitle: boundedText(body.subtitle, "Subtitle", 300),
     thumbnail,
   };
+}
+
+// The library path is an operator-level setting: it is only accepted while Muzik is
+// unconfigured, and every download is confined to it afterwards by safeMusicPath.
+export function validateMusicDir(value: unknown): string {
+  if (typeof value !== "string") throw new Error("Music folder is required.");
+  const path = value.trim();
+  if (!path || path.length > 1000) throw new Error("Music folder is invalid.");
+  if (/[\u0000-\u001f\u007f]/.test(path)) throw new Error("Music folder is invalid.");
+  if (!path.startsWith("/")) throw new Error("Music folder must be an absolute path.");
+  const resolved = resolve(path);
+  if (resolved === "/") throw new Error("Music folder cannot be the filesystem root.");
+  return resolved;
 }
 
 export function validateJobId(value: string): string {

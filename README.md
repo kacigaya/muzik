@@ -15,6 +15,7 @@ external service other than YouTube Music itself.
 
 ## Features
 
+- Asks where to store music on first run, then remembers it
 - Search songs, albums, and playlists from YouTube Music, with live suggestions while typing
 - Paste a YouTube or YouTube Music link instead of searching; a `watch?v=…&list=…` link offers both the single song and the full collection
 - Serial download queue with per-job progress, cancel, and retry, persisted to disk and recovered after a restart
@@ -51,9 +52,21 @@ Or with Compose, after pointing the music volume in `compose.yaml` at your libra
 docker compose up -d
 ```
 
-The image bundles ffmpeg, yt-dlp, and the Python bridges. `/music` is your library and
-`/data` holds the queue, the download archive, and the MusicBrainz cache, so keep `/data`
-on a volume if you want the queue to survive a restart.
+The image bundles ffmpeg, yt-dlp, and the Python bridges. `/data` holds the queue, the
+download archive, the MusicBrainz cache, and your chosen library path, so keep it on a
+volume if you want any of that to survive a restart.
+
+## First run
+
+Muzik asks for a music folder the first time you open it and writes the answer to
+`settings.json` in the data directory. In Docker the answer is `/music`, which is where
+your library is mounted.
+
+The folder is created if it does not exist, and it has to be an absolute path that the
+Muzik process can write to. Since Muzik has no accounts, the setup screen only accepts a
+folder while none is configured; changing it later means editing `settings.json` or
+setting `MUZIK_MUSIC_DIR`. That variable also skips the screen entirely, which is what you
+want for an automated deployment.
 
 Muzik has no authentication. Bind it to a private interface or put it behind whatever
 front end you already use for the rest of your services.
@@ -62,8 +75,9 @@ front end you already use for the rest of your services.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MUZIK_MUSIC_DIR` | `/srv/media-rw/Music` | Library root, also the download target |
-| `MUZIK_DATA_DIR` | `/srv/muzik/data` | Queue state, download archive, MusicBrainz artist cache |
+| `MUZIK_MUSIC_DIR` | unset | Pins the library root and skips the first-run screen |
+| `MUZIK_DEFAULT_MUSIC_DIR` | unset | Prefills the first-run screen without pinning anything |
+| `MUZIK_DATA_DIR` | `/srv/muzik/data` | Queue state, chosen library path, download archive, MusicBrainz artist cache |
 | `MUZIK_TEMP_DIR` | `/srv/muzik/tmp` | Per-job scratch space, cleared when the job ends |
 | `MUZIK_PYTHON` | `.venv/bin/python` | Interpreter for the search and resolve bridges |
 | `MUZIK_YTDLP` | `.venv/bin/yt-dlp` | Downloader binary |
@@ -72,7 +86,8 @@ front end you already use for the rest of your services.
 | `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
 | `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
 
-The Docker image overrides the first five so `/music` and `/data` are the defaults there.
+The Docker image sets the paths and the Python bindings so `/music` and `/data` work out
+of the box.
 
 `MUZIK_VPN_CONTAINER` and `MUZIK_NAVIDROME_CONTAINER` shell out to a container runtime
 through `sudo -n`, which suits a host install more than a container. In Compose, share the

@@ -19,7 +19,7 @@ ENV NODE_ENV=production \
     PORT=3020 \
     MUZIK_PYTHON=/opt/venv/bin/python \
     MUZIK_YTDLP=/opt/venv/bin/yt-dlp \
-    MUZIK_MUSIC_DIR=/music \
+    MUZIK_DEFAULT_MUSIC_DIR=/music \
     MUZIK_DATA_DIR=/data \
     MUZIK_TEMP_DIR=/tmp/muzik
 
