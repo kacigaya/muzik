@@ -12,6 +12,16 @@
 Muzik writes into a directory you choose, in an `Artist/Album/Track` layout that Navidrome,
 Jellyfin, Plex, or a plain file browser can read. It has no accounts and no database.
 
+## Screenshots
+
+### Search and download queue
+
+![YouTube Music search results beside the download queue](public/screenshots/search-and-queue.png)
+
+### Library browser
+
+![Downloaded music organized by artist in the library browser](public/screenshots/library.png)
+
 ## Features
 
 - Asks where to store music on first run, then remembers it
