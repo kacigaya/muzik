@@ -25,6 +25,7 @@ export type SearchResponse = {
 export type JobStatus =
   | "queued"
   | "running"
+  | "retrying"
   | "completed"
   | "completed_with_warnings"
   | "failed"

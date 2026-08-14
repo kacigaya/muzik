@@ -7,14 +7,14 @@ import { parseProgress } from "./progress.ts";
 import { organizeFiles, safeMusicPath } from "./metadata.ts";
 import { musicDir } from "./settings.ts";
 import { fetchLyrics } from "./lyrics.ts";
+import { startNavidromeScan } from "./navidrome.ts";
 import { externalUrl } from "./sources.ts";
 import { defaultFormat } from "./validation.ts";
 import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJob } from "./types.ts";
 
 const exec = promisify(execFile);
 const TERMINAL_LIMIT = 100;
-const TRANSIENT_RETRY_LIMIT = 2;
-const TRANSIENT_RETRY_DELAY_MS = 1_000;
+const TRANSIENT_RETRY_COOLDOWN_MS = 5_000;
 const DEFAULT_OUTPUT_TEMPLATE =
   "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s";
 
@@ -50,7 +50,7 @@ export function upgradeJobs(jobs: DownloadJob[]) {
 }
 
 export function canCancel(job: Pick<DownloadJob, "status">) {
-  return job.status === "queued" || job.status === "running";
+  return job.status === "queued" || job.status === "running" || job.status === "retrying";
 }
 
 export function canRetry(job: Pick<DownloadJob, "status">) {
@@ -59,7 +59,7 @@ export function canRetry(job: Pick<DownloadJob, "status">) {
 
 export function recoverJobs(jobs: DownloadJob[], timestamp = now()) {
   for (const job of jobs) {
-    if (job.status === "running") {
+    if (job.status === "running" || job.status === "retrying") {
       job.status = "queued";
       job.updatedAt = timestamp;
     }
@@ -90,6 +90,7 @@ export class JobStore {
   private activeProcess: ReturnType<typeof spawn> | null = null;
   private activeJobId: string | null = null;
   private workerRunning = false;
+  private scanChain = Promise.resolve();
   private persistChain = Promise.resolve();
   private lastPersistedProgress = -1;
   private readonly dataDir = process.env.MUZIK_DATA_DIR ?? "/srv/muzik/data";
@@ -116,9 +117,9 @@ export class JobStore {
   }
 
   private async persist() {
-    const terminal = this.jobs.filter((job) => !["queued", "running"].includes(job.status));
+    const terminal = this.jobs.filter((job) => !["queued", "running", "retrying"].includes(job.status));
     const keepTerminal = new Set(terminal.slice(0, TERMINAL_LIMIT).map((job) => job.id));
-    this.jobs = this.jobs.filter((job) => ["queued", "running"].includes(job.status) || keepTerminal.has(job.id));
+    this.jobs = this.jobs.filter((job) => ["queued", "running", "retrying"].includes(job.status) || keepTerminal.has(job.id));
     const payload = JSON.stringify(this.jobs, null, 2);
     const target = join(this.dataDir, "jobs.json");
     const temporary = `${target}.tmp`;
@@ -146,7 +147,7 @@ export class JobStore {
     if (!(await musicDir())) throw new Error("Choose a music folder before downloading.");
     await this.load();
     const duplicate = this.jobs.find(
-      (job) => job.kind === request.kind && job.sourceId === request.sourceId && ["queued", "running"].includes(job.status),
+      (job) => job.kind === request.kind && job.sourceId === request.sourceId && ["queued", "running", "retrying"].includes(job.status),
     );
     if (duplicate) return { job: duplicate, created: false };
     const timestamp = now();
@@ -297,8 +298,53 @@ export class JobStore {
     return spawn("sudo", ["-n", "nsenter", "--target", networkPid, "--net", "--", this.ytDlp, ...this.args(job, musicRoot)], options);
   }
 
-  private async download(job: DownloadJob, transientAttempt = 0): Promise<void> {
+  private scheduleNavidromeScan(job: DownloadJob) {
+    const scan = async () => {
+      let scanFailed = false;
+      try {
+        if (await startNavidromeScan()) return;
+      } catch { scanFailed = true; }
+      if (this.navidromeContainer) {
+        try {
+          await exec("sudo", ["-n", this.containerCli, "exec", this.navidromeContainer, "navidrome", "scan"], { timeout: 10 * 60_000 });
+          return;
+        } catch { scanFailed = true; }
+      }
+      if (!scanFailed) return;
+      job.scanWarning = "Downloaded, but Navidrome scan failed. It will appear after the scheduled scan.";
+      job.updatedAt = now();
+      try { await this.persist(); } catch { /* a scan warning must not break later scans */ }
+    };
+    this.scanChain = this.scanChain.then(scan, scan);
+  }
+
+  private scheduleTransientRetry(job: DownloadJob) {
+    job.status = "retrying";
+    job.progress = 0;
+    job.speed = null;
+    job.etaSeconds = null;
+    job.itemIndex = null;
+    job.itemCount = null;
+    job.warningCount = 0;
+    job.error = null;
+    job.updatedAt = now();
+    const timer = setTimeout(() => {
+      void (async () => {
+        const current = this.jobs.find((candidate) => candidate.id === job.id);
+        if (current?.status !== "retrying") return;
+        current.status = "queued";
+        current.updatedAt = now();
+        try { await this.persist(); } catch { /* the next list call can still start the in-memory job */ }
+        void this.runWorker();
+      })();
+    }, TRANSIENT_RETRY_COOLDOWN_MS);
+    timer.unref();
+  }
+
+  private async download(job: DownloadJob): Promise<void> {
+    if (job.status !== "queued") return;
     const musicRoot = await musicDir();
+    if (job.status !== "queued") return;
     if (!musicRoot) {
       job.status = "failed";
       job.error = "No music folder is configured yet.";
@@ -307,6 +353,7 @@ export class JobStore {
       return;
     }
     const shortage = await this.freeSpaceShortage(musicRoot);
+    if (job.status !== "queued") return;
     if (shortage) {
       job.status = "failed";
       job.error = shortage;
@@ -381,27 +428,16 @@ export class JobStore {
       await this.persist();
       return;
     }
-    if (
+    const transientFailure = (
       !job.url
       && job.downloadedItems === 0
       && (exitCode !== 0 || errors.length > 0)
       && isRetryableYoutubeError(errors)
-      && transientAttempt < TRANSIENT_RETRY_LIMIT
-    ) {
-      Object.assign(job, {
-        progress: 0,
-        speed: null,
-        etaSeconds: null,
-        itemIndex: null,
-        itemCount: null,
-        warningCount: 0,
-        error: null,
-        updatedAt: now(),
-      });
+    );
+    if (transientFailure) {
+      this.scheduleTransientRetry(job);
       await this.persist();
-      await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
-      if (this.jobs.find((candidate) => candidate.id === job.id)?.status === "cancelled") return;
-      return this.download(job, transientAttempt + 1);
+      return;
     }
     job.warningCount = errors.length;
     job.progress = 100;
@@ -418,15 +454,11 @@ export class JobStore {
       if (organized.warnings.length) {
         job.metadataWarning = `Downloaded, but metadata organization had ${organized.warnings.length} warning(s).`;
       }
-      if (this.navidromeContainer) {
-        try {
-          await exec("sudo", ["-n", this.containerCli, "exec", this.navidromeContainer, "navidrome", "scan", "--full"], { timeout: 10 * 60_000 });
-        } catch {
-          job.scanWarning = "Downloaded, but Navidrome scan failed. It will appear after the scheduled scan.";
-        }
-      }
     }
     await this.persist();
+    if (job.downloadedItems > 0 && (job.status === "completed" || job.status === "completed_with_warnings")) {
+      this.scheduleNavidromeScan(job);
+    }
   }
 }
 

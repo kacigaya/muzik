@@ -5,6 +5,7 @@ import { validateJobId, validateJobRequest, validateLinkUrl, validateQuery } fro
 import { canCancel, canRetry, isRetryableYoutubeError, recoverJobs, sourceUrl } from "../lib/jobs.ts";
 import { newlyCompleted } from "../lib/completed.ts";
 import { genreFromTags, safeMusicPath } from "../lib/metadata.ts";
+import { navidromeScanUrl } from "../lib/navidrome.ts";
 
 const BASE_JOB = {
   id: "ed1886fe-0906-4b6c-885f-6e333b1d6af1",
@@ -62,13 +63,16 @@ test("parses track and collection progress", () => {
 
 test("enforces job transitions and restart recovery", () => {
   assert.equal(canCancel({ status: "queued" }), true);
+  assert.equal(canCancel({ status: "retrying" }), true);
   assert.equal(canCancel({ status: "completed" }), false);
   assert.equal(canRetry({ status: "failed" }), true);
   assert.equal(canRetry({ status: "running" }), false);
   assert.equal(canRetry({ status: "completed_with_warnings" }), false);
   const running = { ...BASE_JOB, status: "running" };
-  recoverJobs([running], "2026-02-01T00:00:00.000Z");
+  const retrying = { ...BASE_JOB, id: "retrying", status: "retrying" };
+  recoverJobs([running, retrying], "2026-02-01T00:00:00.000Z");
   assert.equal(running.status, "queued");
+  assert.equal(retrying.status, "queued");
   assert.equal(running.updatedAt, "2026-02-01T00:00:00.000Z");
 });
 
@@ -81,6 +85,20 @@ test("recognizes transient YouTube failures that benefit from a fresh request", 
   assert.equal(isRetryableYoutubeError(["ERROR: unable to download video data: HTTP Error 403: Forbidden"]), true);
   assert.equal(isRetryableYoutubeError(["ERROR: Sign in to confirm you're not a bot"]), true);
   assert.equal(isRetryableYoutubeError(["ERROR: Video unavailable"]), false);
+});
+
+test("builds authenticated Navidrome quick-scan API requests without exposing the password", () => {
+  const tokenUrl = navidromeScanUrl("https://music.example/base", "", "gaya", "sesame", "c19b2d");
+  assert.equal(tokenUrl.pathname, "/base/rest/startScan.view");
+  assert.equal(tokenUrl.searchParams.get("u"), "gaya");
+  assert.equal(tokenUrl.searchParams.get("t"), "26719a1196d2a940705a59634eb18eab");
+  assert.equal(tokenUrl.searchParams.get("fullScan"), "false");
+  assert.equal(tokenUrl.href.includes("sesame"), false);
+
+  const keyUrl = navidromeScanUrl("https://music.example", "secret-key", "", "", "unused");
+  assert.equal(keyUrl.searchParams.get("apiKey"), "secret-key");
+  assert.equal(keyUrl.searchParams.has("u"), false);
+  assert.equal(keyUrl.searchParams.has("t"), false);
 });
 
 test("notifies only known jobs that become completed", () => {

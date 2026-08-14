@@ -41,6 +41,7 @@ const GROUPS: { key: GroupKey; label: string }[] = [
 const STATUS_BADGE: Record<JobStatus, BadgeProps["variant"]> = {
   queued: "secondary",
   running: "info",
+  retrying: "info",
   completed: "success",
   completed_with_warnings: "warning",
   failed: "error",
@@ -163,7 +164,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
     } catch { /* subscriptions reload with the next change */ }
   }, []);
 
-  const busy = jobs.some((job) => job.status === "running" || job.status === "queued");
+  const busy = jobs.some((job) => job.status === "running" || job.status === "queued" || job.status === "retrying");
   useEffect(() => {
     const value = query.trim();
     if (value.length < 2) return;
@@ -215,21 +216,16 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
     return () => window.removeEventListener("storage", restoreFormat);
   }, [loadSubscriptions]);
 
-  // The stream pushes every queue change; polling stays as the fallback for proxies that
-  // buffer server-sent events.
+  // SSE gives immediate updates when supported. Polling always stays active because some
+  // proxies deliver the first event, then buffer later events on the same connection.
   useEffect(() => {
-    let streaming = false;
     const source = new EventSource("/api/jobs/stream");
     source.onmessage = (event) => {
-      streaming = true;
       try {
         applyJobs(JSON.parse(event.data).jobs as DownloadJob[]);
       } catch { /* malformed frame, the next one replaces it */ }
     };
-    source.onerror = () => { streaming = false; };
-    const timer = window.setInterval(() => {
-      if (!streaming) void loadJobs();
-    }, busy ? 2_000 : 10_000);
+    const timer = window.setInterval(loadJobs, busy ? 1_000 : 5_000);
     const initial = window.setTimeout(loadJobs, 0);
     return () => {
       source.close();
@@ -389,7 +385,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
     else setMessage(data.error ?? "Could not clear the queue.");
   }
 
-  const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
+  const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running" || job.status === "retrying").length;
   const runningJob = jobs.find((job) => job.status === "running");
   const compact = Boolean(results) || loading;
   const following = new Set(subscriptions.map((entry) => entry.sourceId));
@@ -399,7 +395,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   function itemAction(item: SearchItem) {
     const job = jobBySource.get(sourceKey(item));
     if (job && isCompleted(job)) return <NavidromeCheck job={job} size="icon-sm" baseUrl={navidromeUrl} />;
-    if (job?.status === "running" || job?.status === "queued") {
+    if (job?.status === "running" || job?.status === "queued" || job?.status === "retrying") {
       return (
         <Button variant="ghost" size="icon-sm" disabled aria-label={`${item.title} is ${job.status}`}>
           {job.status === "running"
@@ -787,9 +783,9 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                     {job.error && <p className="mt-2 text-xs leading-normal text-destructive-foreground">{job.error}</p>}
                     {job.metadataWarning && <p className="mt-2 text-xs leading-normal text-warning-foreground">{job.metadataWarning}</p>}
                     {job.scanWarning && <p className="mt-2 text-xs leading-normal text-warning-foreground">{job.scanWarning}</p>}
-                    {(job.status === "queued" || job.status === "running" || job.status === "failed" || job.status === "cancelled") && (
+                    {(job.status === "queued" || job.status === "running" || job.status === "retrying" || job.status === "failed" || job.status === "cancelled") && (
                       <div className="mt-2 flex min-h-6 items-center justify-between gap-2">
-                        {(job.status === "queued" || job.status === "running") && (
+                        {(job.status === "queued" || job.status === "running" || job.status === "retrying") && (
                           <Button variant="ghost" size="xs" onClick={() => act(job, "cancel")}>
                             <X aria-hidden="true" /> Cancel
                           </Button>

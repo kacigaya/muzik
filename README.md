@@ -86,7 +86,10 @@ front end you already use for the rest of your services.
 | `MUZIK_PYTHON` | `.venv/bin/python` | Interpreter for the search and resolve bridges |
 | `MUZIK_YTDLP` | `.venv/bin/yt-dlp` | Downloader binary |
 | `NAVIDROME_URL` | unset | Adds links from finished downloads into a Navidrome web UI |
-| `MUZIK_NAVIDROME_CONTAINER` | unset | Container to run `navidrome scan --full` in after a download |
+| `MUZIK_NAVIDROME_API_KEY` | unset | OpenSubsonic API key used to request a quick Navidrome scan after a download |
+| `MUZIK_NAVIDROME_USERNAME` | unset | Navidrome username used when no API key is configured |
+| `MUZIK_NAVIDROME_PASSWORD` | unset | Navidrome password used with `MUZIK_NAVIDROME_USERNAME` |
+| `MUZIK_NAVIDROME_CONTAINER` | unset | Fallback container to run `navidrome scan` in after a download |
 | `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
 | `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
 | `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `flac`, or `mp3` |
@@ -94,6 +97,11 @@ front end you already use for the rest of your services.
 | `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
 | `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
 | `MUZIK_ALLOW_DELETE` | unset | Set to `1` to allow deleting files from the library browser |
+
+To scan Navidrome after a download, set `NAVIDROME_URL` and either
+`MUZIK_NAVIDROME_API_KEY` or both username and password variables. Muzik calls the
+OpenSubsonic `startScan` endpoint. If API credentials are unset, it uses
+`MUZIK_NAVIDROME_CONTAINER` as a local fallback.
 
 The Docker image sets the paths and the Python bindings so `/music` and `/data` work out
 of the box.
