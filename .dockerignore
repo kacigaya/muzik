@@ -1,0 +1,12 @@
+node_modules
+.next
+.venv
+__pycache__
+*.tsbuildinfo
+.env*
+.git
+.gitignore
+deploy
+tests
+README.md
+LICENSE

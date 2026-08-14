@@ -1,0 +1,16 @@
+services:
+  muzik:
+    build: .
+    ports:
+      - "127.0.0.1:3020:3020"
+    volumes:
+      - /path/to/your/music:/music
+      - muzik-data:/data
+    environment:
+      # Optional. Adds links from finished downloads into your library.
+      # NAVIDROME_URL: https://music.example.com
+      TZ: UTC
+    restart: unless-stopped
+
+volumes:
+  muzik-data:

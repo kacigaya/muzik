@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+  --animate-skeleton: skeleton 2s -1s infinite linear;
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-ring: var(--ring);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-input: var(--input);
+  --color-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-info-foreground: var(--info-foreground);
+  --color-info: var(--info);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand: var(--brand);
+  @keyframes skeleton {
+  to {
+    background-position: -200% 0;
+    }
+  }
+  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1)
+;
+  @keyframes toast-success-odd {
+  0% {
+    scale: 1;}
+  30% {
+    scale: 1.025;}
+  60% {
+    scale: 0.99;}
+  100% {
+    scale: 1;}}
+  @keyframes toast-error-odd {
+  0% {
+    translate: 0 0;}
+  25% {
+    translate: -3px 0;}
+  50% {
+    translate: 3px 0;}
+  75% {
+    translate: -3px 0;}
+  100% {
+    translate: 0 0;}}
+  @keyframes toast-success-even {
+  0% {
+    scale: 1;}
+  30% {
+    scale: 1.025;}
+  60% {
+    scale: 0.99;}
+  100% {
+    scale: 1;}}
+  @keyframes toast-error-even {
+  0% {
+    translate: 0 0;}
+  25% {
+    translate: -3px 0;}
+  50% {
+    translate: 3px 0;}
+  75% {
+    translate: -3px 0;}
+  100% {
+    translate: 0 0;}}}
+
+/* coss neutral tokens shifted to the stone scale to keep Muzik's warm paper identity. */
+:root {
+  --background: var(--color-stone-50);
+  --foreground: var(--color-stone-800);
+  --card: var(--color-white);
+  --muted: --alpha(var(--color-black) / 4%);
+  --muted-foreground: color-mix(in srgb, var(--color-stone-500) 90%, var(--color-black));
+  --border: --alpha(var(--color-black) / 8%);
+  --primary: var(--color-stone-800);
+  --primary-foreground: var(--color-stone-50);
+  /* Single identity accent, reserved for in-flight download state and the logo. */
+  --brand: var(--color-violet-600);
+  --ring: var(--color-stone-400);
+  --accent: --alpha(var(--color-black) / 4%);
+  --success: var(--color-emerald-500);
+  --warning: var(--color-amber-500);
+  --destructive: var(--color-red-500);
+  --destructive-foreground: var(--color-red-700);
+  --info: var(--color-blue-500);
+  --info-foreground: var(--color-blue-700);
+  --success-foreground: var(--color-emerald-700);
+  --warning-foreground: var(--color-amber-700);
+  --accent-foreground: var(--color-stone-800);
+  --card-foreground: var(--color-stone-800);
+  --input: --alpha(var(--color-black) / 10%);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-stone-800);
+  --secondary: --alpha(var(--color-black) / 4%);
+  --secondary-foreground: var(--color-stone-800);
+}
+
+.dark {
+  --destructive-foreground: var(--color-red-400);
+  --info: var(--color-blue-500);
+  --info-foreground: var(--color-blue-400);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-400);
+  --warning: var(--color-amber-500);
+  --warning-foreground: var(--color-amber-400);
+  --background: #161616;
+  --foreground: var(--color-neutral-100);
+  --card: #1b1b1b;
+  --card-foreground: var(--color-neutral-100);
+  --popover: #1b1b1b;
+  --popover-foreground: var(--color-neutral-100);
+  --primary: var(--color-neutral-100);
+  --primary-foreground: #161616;
+  --secondary: --alpha(var(--color-white) / 8%);
+  --secondary-foreground: var(--color-neutral-100);
+  --muted: --alpha(var(--color-white) / 6%);
+  --muted-foreground: var(--color-neutral-400);
+  --accent: --alpha(var(--color-white) / 6%);
+  --accent-foreground: var(--color-neutral-100);
+  --border: --alpha(var(--color-white) / 8%);
+  --input: --alpha(var(--color-white) / 10%);
+  --ring: var(--color-neutral-600);
+  --brand: var(--color-violet-400);
+  --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
