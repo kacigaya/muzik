@@ -13,6 +13,8 @@ import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJo
 
 const exec = promisify(execFile);
 const TERMINAL_LIMIT = 100;
+const TRANSIENT_RETRY_LIMIT = 2;
+const TRANSIENT_RETRY_DELAY_MS = 1_000;
 const DEFAULT_OUTPUT_TEMPLATE =
   "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s";
 
@@ -71,6 +73,14 @@ function safeError(lines: string[]) {
     .at(-1)
     ?.replace(/^ERROR:\s*/, "")
     .slice(0, 500) ?? "Download failed. Check service logs for details.";
+}
+
+export function isRetryableYoutubeError(lines: string[]) {
+  const message = lines.join("\n").toLowerCase();
+  return message.includes("http error 403")
+    || message.includes("403: forbidden")
+    || message.includes("sign in to confirm you’re not a bot")
+    || message.includes("sign in to confirm you're not a bot");
 }
 
 export class JobStore {
@@ -287,7 +297,7 @@ export class JobStore {
     return spawn("sudo", ["-n", "nsenter", "--target", networkPid, "--net", "--", this.ytDlp, ...this.args(job, musicRoot)], options);
   }
 
-  private async download(job: DownloadJob) {
+  private async download(job: DownloadJob, transientAttempt = 0): Promise<void> {
     const musicRoot = await musicDir();
     if (!musicRoot) {
       job.status = "failed";
@@ -370,6 +380,28 @@ export class JobStore {
     if (this.jobs.find((candidate) => candidate.id === job.id)?.status === "cancelled") {
       await this.persist();
       return;
+    }
+    if (
+      !job.url
+      && job.downloadedItems === 0
+      && (exitCode !== 0 || errors.length > 0)
+      && isRetryableYoutubeError(errors)
+      && transientAttempt < TRANSIENT_RETRY_LIMIT
+    ) {
+      Object.assign(job, {
+        progress: 0,
+        speed: null,
+        etaSeconds: null,
+        itemIndex: null,
+        itemCount: null,
+        warningCount: 0,
+        error: null,
+        updatedAt: now(),
+      });
+      await this.persist();
+      await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
+      if (this.jobs.find((candidate) => candidate.id === job.id)?.status === "cancelled") return;
+      return this.download(job, transientAttempt + 1);
     }
     job.warningCount = errors.length;
     job.progress = 100;

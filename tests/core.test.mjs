@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseProgress } from "../lib/progress.ts";
 import { validateJobId, validateJobRequest, validateLinkUrl, validateQuery } from "../lib/validation.ts";
-import { canCancel, canRetry, recoverJobs, sourceUrl } from "../lib/jobs.ts";
+import { canCancel, canRetry, isRetryableYoutubeError, recoverJobs, sourceUrl } from "../lib/jobs.ts";
 import { newlyCompleted } from "../lib/completed.ts";
 import { genreFromTags, safeMusicPath } from "../lib/metadata.ts";
 
@@ -75,6 +75,12 @@ test("enforces job transitions and restart recovery", () => {
 test("constructs fixed YouTube Music URLs without shell input", () => {
   assert.equal(sourceUrl(BASE_JOB), "https://music.youtube.com/watch?v=abcdefghijk");
   assert.equal(sourceUrl({ kind: "album", sourceId: "OLAK5uy_example" }), "https://music.youtube.com/playlist?list=OLAK5uy_example");
+});
+
+test("recognizes transient YouTube failures that benefit from a fresh request", () => {
+  assert.equal(isRetryableYoutubeError(["ERROR: unable to download video data: HTTP Error 403: Forbidden"]), true);
+  assert.equal(isRetryableYoutubeError(["ERROR: Sign in to confirm you're not a bot"]), true);
+  assert.equal(isRetryableYoutubeError(["ERROR: Video unavailable"]), false);
 });
 
 test("notifies only known jobs that become completed", () => {
