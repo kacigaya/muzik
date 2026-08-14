@@ -10,11 +10,15 @@ const BASE_JOB = {
   id: "ed1886fe-0906-4b6c-885f-6e333b1d6af1",
   kind: "song",
   sourceId: "abcdefghijk",
+  url: null,
   title: "Song",
   subtitle: "Artist",
   thumbnail: null,
+  format: "m4a",
   status: "queued",
   progress: 0,
+  speed: null,
+  etaSeconds: null,
   itemIndex: null,
   itemCount: null,
   downloadedItems: 0,
@@ -31,8 +35,9 @@ test("validates search and download trust boundaries", () => {
   assert.throws(() => validateQuery("x"), /between 2 and 120/);
   assert.throws(() => validateJobId("../../etc/passwd"), /invalid/);
   assert.deepEqual(validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "Song", subtitle: "Artist", thumbnail: "https://i.ytimg.com/a.jpg" }), {
-    kind: "song", sourceId: "abcdefghijk", title: "Song", subtitle: "Artist", thumbnail: "https://i.ytimg.com/a.jpg",
+    kind: "song", sourceId: "abcdefghijk", url: null, title: "Song", subtitle: "Artist", thumbnail: "https://i.ytimg.com/a.jpg", format: "m4a",
   });
+  assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", format: "wav" }), /unsupported/);
   assert.throws(() => validateJobRequest({ kind: "playlist", sourceId: "PLgood;touch_bad", title: "x", subtitle: "x" }), /invalid/);
   assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", thumbnail: "javascript:alert(1)" }), /invalid/);
   assert.equal(validateLinkUrl("  https://youtu.be/dQw4w9WgXcQ  "), "https://youtu.be/dQw4w9WgXcQ");
@@ -41,10 +46,16 @@ test("validates search and download trust boundaries", () => {
 });
 
 test("parses track and collection progress", () => {
-  assert.deepEqual(parseProgress("muzik: 50.0%|0|0"), { progress: 50, itemIndex: null, itemCount: null });
-  assert.deepEqual(parseProgress("muzik: 50.0%|2|4"), { progress: 38, itemIndex: 2, itemCount: 4 });
-  assert.deepEqual(parseProgress("muzik:  0.1%|NA|NA"), { progress: 0, itemIndex: null, itemCount: null });
-  assert.deepEqual(parseProgress("muzik:100.0%|NA|NA"), { progress: 100, itemIndex: null, itemCount: null });
+  assert.deepEqual(parseProgress("muzik: 50.0%|0|0"), { progress: 50, itemIndex: null, itemCount: null, speed: null, etaSeconds: null });
+  assert.deepEqual(parseProgress("muzik: 50.0%|2|4"), { progress: 38, itemIndex: 2, itemCount: 4, speed: null, etaSeconds: null });
+  assert.deepEqual(parseProgress("muzik:  0.1%|NA|NA"), { progress: 0, itemIndex: null, itemCount: null, speed: null, etaSeconds: null });
+  assert.deepEqual(parseProgress("muzik:100.0%|NA|NA"), { progress: 100, itemIndex: null, itemCount: null, speed: null, etaSeconds: null });
+  assert.deepEqual(parseProgress("muzik: 12.0%|0|0|1.20MiB/s|01:05"), {
+    progress: 12, itemIndex: null, itemCount: null, speed: "1.20MiB/s", etaSeconds: 65,
+  });
+  assert.deepEqual(parseProgress("muzik: 12.0%|0|0|Unknown|Unknown"), {
+    progress: 12, itemIndex: null, itemCount: null, speed: null, etaSeconds: null,
+  });
   assert.equal(parseProgress("[download] 50%"), null);
   assert.equal(parseProgress("muzik: nope|2|4"), null);
 });

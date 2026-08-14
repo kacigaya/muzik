@@ -32,10 +32,18 @@ COPY --from=build /app/.next ./.next
 COPY app ./app
 COPY components ./components
 COPY lib ./lib
+COPY public ./public
 COPY scripts ./scripts
-COPY next.config.ts tsconfig.json ./
+COPY instrumentation.ts next.config.ts tsconfig.json ./
+
+# Runs unprivileged; mounted volumes have to be writable by uid 1000.
+RUN mkdir -p /music /data && chown -R node:node /app /music /data
+USER node
 
 VOLUME ["/music", "/data"]
 EXPOSE 3020
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3020)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["npm", "run", "start"]

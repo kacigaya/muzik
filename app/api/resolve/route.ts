@@ -1,5 +1,5 @@
-import { parseMusicLink } from "@/lib/link";
-import { resolveLink } from "@/lib/resolve";
+import { externalLink, parseMusicLink } from "@/lib/link";
+import { resolveExternal, resolveLink } from "@/lib/resolve";
 import { validateLinkUrl } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -7,11 +7,12 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const url = validateLinkUrl(new URL(request.url).searchParams.get("url"));
-    const parsed = parseMusicLink(url);
-    if (!parsed) {
-      return Response.json({ error: "Not a supported YouTube or YouTube Music link." }, { status: 400 });
+    const external = externalLink(url);
+    const parsed = external ? null : parseMusicLink(url);
+    if (!external && !parsed) {
+      return Response.json({ error: "Not a supported music link." }, { status: 400 });
     }
-    const items = await resolveLink(parsed);
+    const items = external ? await resolveExternal(external) : await resolveLink(parsed!);
     return Response.json({ url, items }, { headers: { "Cache-Control": "no-store" } });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Resolve failed.";

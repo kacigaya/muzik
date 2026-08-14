@@ -121,6 +121,42 @@ def normalize_resolved_playlist(kind: str, playlist_id: str, data: dict[str, Any
     }
 
 
+def normalize_track(item: dict[str, Any], index: int, fallback_album: str | None) -> dict[str, Any] | None:
+    video_id = item.get("videoId")
+    if not video_id:
+        return None
+    album = (item.get("album") or {}).get("name") if isinstance(item.get("album"), dict) else fallback_album
+    artist = artist_text(item)
+    duration = item.get("duration_seconds")
+    return {
+        "kind": "song",
+        "sourceId": video_id,
+        "title": item.get("title") or f"Track {index}",
+        "subtitle": f"{artist} \u00b7 {album}" if album else artist,
+        "thumbnail": thumbnail(item),
+        "durationSeconds": duration if isinstance(duration, int) else None,
+        "itemCount": None,
+    }
+
+
+def list_tracks(kind: str, source_id: str, client: YTMusic) -> list[dict[str, Any]]:
+    if kind == "album":
+        browse_id = client.get_album_browse_id(source_id) or source_id
+        data = client.get_album(browse_id)
+        album_title = data.get("title")
+        tracks = data.get("tracks") or []
+    else:
+        data = client.get_playlist(source_id, limit=500)
+        album_title = None
+        tracks = data.get("tracks") or []
+    items = []
+    for index, track in enumerate(tracks, start=1):
+        entry = normalize_track(track, index, album_title)
+        if entry:
+            items.append(entry)
+    return items
+
+
 def resolve_item(kind: str, source_id: str, client: YTMusic) -> dict[str, Any] | None:
     if kind == "song":
         return normalize_resolved_song(client.get_song(source_id))
@@ -140,7 +176,9 @@ def build_response(query: str, client: YTMusic) -> dict[str, Any]:
 
 
 def main() -> None:
-    if len(sys.argv) == 4 and sys.argv[1] == "resolve":
+    if len(sys.argv) == 4 and sys.argv[1] == "tracks":
+        print(json.dumps({"items": list_tracks(sys.argv[2], sys.argv[3], YTMusic())}, ensure_ascii=False))
+    elif len(sys.argv) == 4 and sys.argv[1] == "resolve":
         item = resolve_item(sys.argv[2], sys.argv[3], YTMusic())
         if not item:
             print(json.dumps({"error": "This item is unavailable."}))

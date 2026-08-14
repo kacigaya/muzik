@@ -10,21 +10,25 @@
 </p>
 
 Muzik writes into a directory you choose, in an `Artist/Album/Track` layout that Navidrome,
-Jellyfin, Plex, or a plain file browser can read. It has no accounts, no database, and no
-external service other than YouTube Music itself.
+Jellyfin, Plex, or a plain file browser can read. It has no accounts and no database.
 
 ## Features
 
 - Asks where to store music on first run, then remembers it
 - Search songs, albums, and playlists from YouTube Music, with live suggestions while typing
-- Paste a YouTube or YouTube Music link instead of searching; a `watch?v=…&list=…` link offers both the single song and the full collection
-- Serial download queue with per-job progress, cancel, and retry, persisted to disk and recovered after a restart
-- Results show what is already queued, running, or downloaded
+- Paste a link instead of searching: YouTube, YouTube Music, SoundCloud, or Bandcamp. A `watch?v=…&list=…` link offers both the single song and the full collection
+- Expand an album or playlist to see its tracks and queue only the ones you want
+- Follow an album or playlist and Muzik re-checks it on a schedule, downloading whatever was added since
+- Serial download queue with live progress, speed, and time remaining, plus cancel and retry, persisted to disk and recovered after a restart
+- Browse what has been downloaded, re-queue a track, or delete files once deleting is enabled
+- Pick the audio format: m4a, opus, flac, or mp3
 - One broad genre assigned per download from MusicBrainz tags, with album artist and album year normalized from the files themselves
+- Optional synced lyrics written next to each track as `.lrc`
+- Refuses to start a download when the disk is nearly full, instead of failing halfway through
 - Duplicate protection through a yt-dlp download archive and a queue that refuses to add the same source twice
 - Optional links straight into a Navidrome instance, and an optional scan trigger after each download
 - Optional routing of all downloads through a VPN container
-- Sticky search bar, `/` and `⌘K` shortcuts, light and dark themes, toasts on completion, and a queue bar that follows you on mobile
+- Installable as a PWA, with `/` and `⌘K` shortcuts, light and dark themes, and a queue bar that follows you on mobile
 
 ## Tech stack
 
@@ -32,7 +36,7 @@ external service other than YouTube Music itself.
 - UI: React 19, Tailwind CSS 4, [coss ui](https://coss.com/ui) components on Base UI, Lucide and morphicons
 - Language: TypeScript
 - Downloader: yt-dlp with ffmpeg
-- Metadata: ytmusicapi for search and link resolution, mutagen for tag rewriting, MusicBrainz for genre
+- Metadata: ytmusicapi for YouTube Music, yt-dlp for other sources, mutagen for tag rewriting, MusicBrainz for genre, lrclib.net for lyrics
 - Testing: `node --test` for the TypeScript modules, `unittest` for the Python bridge
 
 ## Running with Docker
@@ -85,6 +89,11 @@ front end you already use for the rest of your services.
 | `MUZIK_NAVIDROME_CONTAINER` | unset | Container to run `navidrome scan --full` in after a download |
 | `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
 | `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
+| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `flac`, or `mp3` |
+| `MUZIK_OUTPUT_TEMPLATE` | `Artist/Album/NN - Title [id].ext` | yt-dlp output template for downloaded files |
+| `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
+| `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
+| `MUZIK_ALLOW_DELETE` | unset | Set to `1` to allow deleting files from the library browser |
 
 The Docker image sets the paths and the Python bindings so `/music` and `/data` work out
 of the box.
@@ -140,13 +149,39 @@ change that.
 ### Project structure
 
 ```
-app/            # Next.js App Router entry, layout, and global styles
-  api/          # search, resolve, jobs, health
-components/     # MuzikApp and the coss ui primitives it uses
-lib/            # Queue, downloader, metadata, link parsing, validation
+app/            # Next.js App Router entry, layout, manifest, and global styles
+  api/          # search, resolve, tracks, jobs, subscriptions, library, setup, health
+  library/      # Library browser page
+components/     # MuzikApp, onboarding, library browser, and the coss ui primitives
+lib/            # Queue, downloader, metadata, subscriptions, lyrics, library, validation
 scripts/        # ytmusicapi bridges and the library reorganizer
+public/         # Icon and service worker
 tests/          # Node and Python tests
+instrumentation.ts  # Starts the subscription scheduler with the server
 ```
+
+## Following a collection
+
+Any album or playlist can be followed from its search result. Muzik re-queues it every
+`intervalHours` (24 by default) and yt-dlp's download archive skips everything already on
+disk, so a sync only pulls what was added since the last run. The scheduler runs in the
+server process and also catches up once at startup, so a machine that was off overnight
+still syncs when it comes back.
+
+## Library browser
+
+`/library` walks the music folder, shows what Muzik wrote, and can queue a track again
+from the video id stored in its file name. Deleting is off unless `MUZIK_ALLOW_DELETE=1`
+is set, because Muzik has no accounts: anyone who can reach the page can use whatever it
+allows. Deleting a track also drops it from the download archive, otherwise yt-dlp would
+skip it forever after.
+
+## Lyrics
+
+With `MUZIK_LYRICS=1`, each finished track is looked up on lrclib.net by artist, title,
+album, and duration, and a matching `.lrc` is written next to the audio file. This sends
+those track names to a third-party service, which is why it is off by default. Failures
+are ignored: a download does not become broken because a lyrics server was unreachable.
 
 ## How a download works
 
@@ -156,7 +191,8 @@ tests/          # Node and Python tests
 3. Finished files are re-read with mutagen. Album artist and year come from whatever the
    tracks agree on, and the genre comes from the artist's MusicBrainz tags, cached per
    artist and rate limited to one request per second. Unknown artists get `Other`.
-4. If a Navidrome container is configured, a full scan runs.
+4. Lyrics are fetched when enabled, and if a Navidrome container is configured, a full
+   scan runs.
 
 Existing files can be normalized the same way without downloading anything:
 
@@ -165,7 +201,10 @@ npm run organize
 ```
 
 The queue keeps the last 100 finished jobs and drops the rest. Jobs that were running when
-the process stopped are re-queued at startup. `GET /api/health` answers for uptime checks.
+the process stopped are re-queued at startup. The browser follows progress over
+`GET /api/jobs/stream`, a server-sent event stream, and falls back to polling when a proxy
+buffers it. `GET /api/health` answers for uptime checks, and the Docker image uses it as
+its own health check.
 
 ## Notes
 

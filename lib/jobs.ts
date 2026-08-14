@@ -1,24 +1,50 @@
 import { spawn, execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { parseProgress } from "./progress.ts";
 import { organizeFiles, safeMusicPath } from "./metadata.ts";
 import { musicDir } from "./settings.ts";
-import type { CreateJobRequest, DownloadJob } from "./types.ts";
+import { fetchLyrics } from "./lyrics.ts";
+import { externalUrl } from "./sources.ts";
+import { defaultFormat } from "./validation.ts";
+import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJob } from "./types.ts";
 
 const exec = promisify(execFile);
 const TERMINAL_LIMIT = 100;
+const DEFAULT_OUTPUT_TEMPLATE =
+  "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s";
 
 function now() {
   return new Date().toISOString();
 }
 
-export function sourceUrl(job: Pick<DownloadJob, "kind" | "sourceId">) {
+export function sourceUrl(job: Pick<DownloadJob, "kind" | "sourceId"> & { url?: string | null }) {
+  if (job.url) return job.url;
   return job.kind === "song"
     ? `https://music.youtube.com/watch?v=${job.sourceId}`
     : `https://music.youtube.com/playlist?list=${job.sourceId}`;
+}
+
+/** yt-dlp keeps the best m4a when asked for one, and otherwise re-encodes from the best audio. */
+export function formatSelector(format: AudioFormat) {
+  return format === "m4a" ? "bestaudio[ext=m4a]/bestaudio" : "bestaudio/best";
+}
+
+/**
+ * Fields added after the first release are backfilled so an old jobs.json still loads.
+ * Values are re-checked rather than trusted: they end up as yt-dlp arguments, and the
+ * file can be edited by hand.
+ */
+export function upgradeJobs(jobs: DownloadJob[]) {
+  for (const job of jobs) {
+    job.url = job.url ? externalUrl(job.url) : null;
+    job.format = AUDIO_FORMATS.includes(job.format) ? job.format : defaultFormat();
+    job.speed ??= null;
+    job.etaSeconds ??= null;
+  }
+  return jobs;
 }
 
 export function canCancel(job: Pick<DownloadJob, "status">) {
@@ -49,6 +75,7 @@ function safeError(lines: string[]) {
 
 export class JobStore {
   private jobs: DownloadJob[] = [];
+  private listeners = new Set<() => void>();
   private loaded = false;
   private activeProcess: ReturnType<typeof spawn> | null = null;
   private activeJobId: string | null = null;
@@ -73,7 +100,7 @@ export class JobStore {
     } catch (cause) {
       if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     }
-    recoverJobs(this.jobs);
+    upgradeJobs(recoverJobs(this.jobs));
     this.loaded = true;
     await this.persist();
   }
@@ -90,6 +117,13 @@ export class JobStore {
       await rename(temporary, target);
     });
     await this.persistChain;
+    for (const listener of this.listeners) listener();
+  }
+
+  /** Called on every persisted change so the stream endpoint can push instead of poll. */
+  subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   async list() {
@@ -111,6 +145,8 @@ export class JobStore {
       id: randomUUID(),
       status: "queued",
       progress: 0,
+      speed: null,
+      etaSeconds: null,
       itemIndex: null,
       itemCount: null,
       downloadedItems: 0,
@@ -159,6 +195,8 @@ export class JobStore {
     Object.assign(job, {
       status: "queued",
       progress: 0,
+      speed: null,
+      etaSeconds: null,
       itemIndex: null,
       itemCount: null,
       downloadedItems: 0,
@@ -195,6 +233,24 @@ export class JobStore {
     }
   }
 
+  /**
+   * yt-dlp fails deep into a playlist when the disk fills, so refuse before starting.
+   * The scratch directory is checked as well: it often sits on a different filesystem
+   * from the library, and every download passes through it first.
+   */
+  private async freeSpaceShortage(musicRoot: string) {
+    const minimumMb = Number(process.env.MUZIK_MIN_FREE_MB ?? 500);
+    if (!Number.isFinite(minimumMb) || minimumMb <= 0) return null;
+    for (const [label, path] of [["music folder", musicRoot], ["scratch folder", this.tempDir]] as const) {
+      try {
+        const stats = await statfs(path);
+        const freeMb = Math.floor((stats.bsize * stats.bavail) / 1024 / 1024);
+        if (freeMb < minimumMb) return `Only ${freeMb} MB free in the ${label}, and ${minimumMb} MB are required.`;
+      } catch { /* an unreadable mount is not evidence of a full disk */ }
+    }
+    return null;
+  }
+
   private args(job: DownloadJob, musicRoot: string) {
     const jobTemp = join(this.tempDir, job.id);
     return [
@@ -206,15 +262,15 @@ export class JobStore {
       "--download-archive", join(this.dataDir, "downloaded.txt"),
       "--paths", `home:${musicRoot}`,
       "--paths", `temp:${jobTemp}`,
-      "--output", "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s",
-      "--format", "bestaudio[ext=m4a]/bestaudio",
+      "--output", process.env.MUZIK_OUTPUT_TEMPLATE ?? DEFAULT_OUTPUT_TEMPLATE,
+      "--format", formatSelector(job.format),
       "--extract-audio",
-      "--audio-format", "m4a",
+      "--audio-format", job.format,
       "--audio-quality", "0",
       "--embed-metadata",
       "--embed-thumbnail",
       "--convert-thumbnails", "jpg",
-      "--progress-template", "download:muzik:%(progress._percent_str)s|%(playlist_index|0)s|%(playlist_count|0)s",
+      "--progress-template", "download:muzik:%(progress._percent_str)s|%(playlist_index|0)s|%(playlist_count|0)s|%(progress._speed_str)s|%(progress._eta_str)s",
       "--print", "after_move:muzik-file:%(filepath)s",
       sourceUrl(job),
     ];
@@ -236,6 +292,14 @@ export class JobStore {
     if (!musicRoot) {
       job.status = "failed";
       job.error = "No music folder is configured yet.";
+      job.updatedAt = now();
+      await this.persist();
+      return;
+    }
+    const shortage = await this.freeSpaceShortage(musicRoot);
+    if (shortage) {
+      job.status = "failed";
+      job.error = shortage;
       job.updatedAt = now();
       await this.persist();
       return;
@@ -309,6 +373,8 @@ export class JobStore {
     }
     job.warningCount = errors.length;
     job.progress = 100;
+    job.speed = null;
+    job.etaSeconds = null;
     job.updatedAt = now();
     if ((exitCode !== 0 || errors.length > 0) && job.downloadedItems === 0) {
       job.status = "failed";
@@ -316,6 +382,7 @@ export class JobStore {
     } else {
       job.status = errors.length ? "completed_with_warnings" : "completed";
       const organized = await organizeFiles([...downloadedFiles], musicRoot, this.dataDir);
+      await fetchLyrics([...downloadedFiles]);
       if (organized.warnings.length) {
         job.metadataWarning = `Downloaded, but metadata organization had ${organized.warnings.length} warning(s).`;
       }
