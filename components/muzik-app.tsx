@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Bell, BellOff, Check, ChevronDown, Clock, Download, ExternalLink, Github, Library, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, Check, ChevronDown, Clock, Download, ExternalLink, Github, Library, Music2, RefreshCw, Search, Settings, X } from "lucide-react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
@@ -133,7 +133,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [format, setFormat] = useState<AudioFormat>("m4a");
+  const [format, setFormat] = useState<AudioFormat>(AUDIO_FORMATS[0]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Record<string, SearchItem[]>>({});
@@ -202,11 +202,17 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      await loadSubscriptions();
+    function restoreFormat() {
       const stored = window.localStorage.getItem("muzik-format") as AudioFormat | null;
       if (stored && AUDIO_FORMATS.includes(stored)) setFormat(stored);
+    }
+    void (async () => {
+      await loadSubscriptions();
+      restoreFormat();
     })();
+    // The format now lives on its own page, so another tab can change it under us.
+    window.addEventListener("storage", restoreFormat);
+    return () => window.removeEventListener("storage", restoreFormat);
   }, [loadSubscriptions]);
 
   // The stream pushes every queue change; polling stays as the fallback for proxies that
@@ -291,11 +297,6 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
     }
     await loadJobs();
     return true;
-  }
-
-  function changeFormat(value: AudioFormat) {
-    setFormat(value);
-    window.localStorage.setItem("muzik-format", value);
   }
 
   async function toggleTracks(item: SearchItem) {
@@ -528,26 +529,20 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="px-4 pt-2 sm:px-8">
-        <nav aria-label="Primary navigation" className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between rounded-xl border bg-card/80 pl-3 pr-1.5 shadow-sm backdrop-blur sm:pl-4 sm:pr-2">
+        <nav aria-label="Primary navigation" className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-2 rounded-xl border bg-card/80 pl-3 pr-1.5 shadow-sm backdrop-blur sm:pl-4 sm:pr-2">
           <a
-            className="flex items-center gap-2.5 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="flex min-w-0 items-center gap-2.5 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             href="#top"
           >
-            <Music2 aria-hidden="true" className="size-5" />
-            Muzik
+            <Music2 aria-hidden="true" className="size-5 shrink-0" />
+            <span className="truncate">Muzik</span>
           </a>
-          <div className="flex items-center gap-2">
-            <label className="sr-only" htmlFor="audio-format">Audio format</label>
-            <select
-              id="audio-format"
-              value={format}
-              onChange={(event) => changeFormat(event.target.value as AudioFormat)}
-              className="h-8 cursor-pointer rounded-lg border border-input bg-popover px-2 font-mono text-xs uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-input/32"
-            >
-              {AUDIO_FORMATS.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
             <Button variant="ghost" size="icon" render={<Link href="/library" />} aria-label="Browse the library">
               <Library aria-hidden="true" />
+            </Button>
+            <Button variant="ghost" size="icon" render={<Link href="/settings" />} aria-label="Settings">
+              <Settings aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
@@ -561,9 +556,12 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
             {navidromeUrl && (
               <Button
                 variant="outline"
+                className="max-sm:px-2"
                 render={<a href={navidromeUrl} target="_blank" rel="noreferrer" />}
               >
-                Open Navidrome <ExternalLink aria-hidden="true" />
+                {/* Below ~380px the label is dropped so the bar can never overflow. */}
+                <span className="max-[380px]:sr-only">Navidrome</span>
+                <ExternalLink aria-hidden="true" />
               </Button>
             )}
           </div>
