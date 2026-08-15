@@ -106,10 +106,25 @@ function cleanUsername(value: unknown) {
   return username;
 }
 
+/**
+ * NAVIDROME_URL never passes through the settings form, so it is validated on read. An
+ * unparseable or non-HTTP value counts as unset, which keeps it out of hrefs and outbound
+ * requests and leaves the operator able to configure a server through the UI.
+ */
+function environmentNavidromeUrl() {
+  const candidate = process.env.NAVIDROME_URL?.trim();
+  if (!candidate) return "";
+  try {
+    return cleanNavidromeUrl(candidate);
+  } catch {
+    return "";
+  }
+}
+
 export async function navidromeConnection() {
   const stored = (await load())?.navidrome;
   return {
-    url: process.env.NAVIDROME_URL?.trim() || stored?.url || "",
+    url: environmentNavidromeUrl() || stored?.url || "",
     apiKey: process.env.MUZIK_NAVIDROME_API_KEY || stored?.apiKey || "",
     username: process.env.MUZIK_NAVIDROME_USERNAME || stored?.username || "",
     password: process.env.MUZIK_NAVIDROME_PASSWORD || stored?.password || "",
@@ -129,7 +144,7 @@ export async function publicNavidromeSettings(): Promise<PublicNavidromeSettings
     username: connection.username,
     apiKeyConfigured: Boolean(connection.apiKey),
     passwordConfigured: Boolean(connection.password),
-    urlPinned: Boolean(process.env.NAVIDROME_URL?.trim()),
+    urlPinned: Boolean(environmentNavidromeUrl()),
     authPinned: environmentApiKey || environmentPassword,
   };
 }
@@ -141,14 +156,14 @@ export async function saveNavidromeSettings(value: unknown) {
     const settings = await load() ?? { musicDir: fromEnvironment() };
     if (!settings.musicDir) throw new Error("Choose a music folder before configuring Navidrome.");
     const current = settings.navidrome;
-    const urlPinned = Boolean(process.env.NAVIDROME_URL?.trim());
+    const urlPinned = Boolean(environmentNavidromeUrl());
     const authPinned = Boolean(process.env.MUZIK_NAVIDROME_API_KEY
       || (process.env.MUZIK_NAVIDROME_USERNAME && process.env.MUZIK_NAVIDROME_PASSWORD));
     const url = urlPinned ? current?.url ?? "" : cleanNavidromeUrl(input.url);
     if (authPinned && !urlPinned && url !== (current?.url ?? "")) {
       throw new Error("Set NAVIDROME_URL with environment-managed credentials.");
     }
-    const effectiveUrl = process.env.NAVIDROME_URL?.trim() || url;
+    const effectiveUrl = environmentNavidromeUrl() || url;
     const urlChanged = Boolean(current && url !== current.url);
     const authMode = input.authMode === "password" ? "password" : "apiKey";
     let apiKey = current?.apiKey ?? "";

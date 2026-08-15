@@ -95,7 +95,7 @@ front end you already use for the rest of your services.
 | `MUZIK_TEMP_DIR` | `/srv/muzik/tmp` | Per-job scratch space, cleared when the job ends |
 | `MUZIK_PYTHON` | `.venv/bin/python` | Interpreter for the search and resolve bridges |
 | `MUZIK_YTDLP` | `.venv/bin/yt-dlp` | Downloader binary |
-| `NAVIDROME_URL` | unset | Adds links from finished downloads into a Navidrome web UI |
+| `NAVIDROME_URL` | unset | Adds links from finished downloads into a Navidrome web UI. Ignored unless it is a plain HTTP or HTTPS address |
 | `MUZIK_NAVIDROME_API_KEY` | unset | OpenSubsonic API key used to request a quick Navidrome scan after a download |
 | `MUZIK_NAVIDROME_USERNAME` | unset | Navidrome username used when no API key is configured |
 | `MUZIK_NAVIDROME_PASSWORD` | unset | Navidrome password used with `MUZIK_NAVIDROME_USERNAME` |

@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useTheme } from "next-themes";
-import { Bell, BellOff, Check, ChevronDown, Clock, Download, ExternalLink, Github, Library, Music2, RefreshCw, Search, Settings, X } from "lucide-react";
-import { Moon, Sun } from "lucide";
-import { MorphIcon } from "morphicons/react";
+import { Bell, BellOff, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -28,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { toastManager } from "@/components/ui/toast";
+import { SiteNav } from "@/components/site-nav";
 
 type GroupKey = keyof Pick<SearchResponse, "songs" | "albums" | "playlists">;
 
@@ -140,7 +137,6 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [tracks, setTracks] = useState<Record<string, SearchItem[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const jobStatuses = useRef<Map<string, JobStatus> | null>(null);
-  const { resolvedTheme, setTheme } = useTheme();
 
   const applyJobs = useCallback((nextJobs: DownloadJob[]) => {
     for (const job of newlyCompleted(jobStatuses.current, nextJobs)) {
@@ -524,45 +520,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="px-4 pt-2 sm:px-8">
-        <nav aria-label="Primary navigation" className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-2 rounded-xl border bg-card/80 pl-3 pr-1.5 shadow-sm backdrop-blur sm:pl-4 sm:pr-2">
-          <a
-            className="flex min-w-0 items-center gap-2.5 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            href="#top"
-          >
-            <Music2 aria-hidden="true" className="size-5 shrink-0" />
-            <span className="truncate">Muzik</span>
-          </a>
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
-            <Button variant="ghost" size="icon" render={<Link href="/library" />} aria-label="Browse the library">
-              <Library aria-hidden="true" />
-            </Button>
-            <Button variant="ghost" size="icon" render={<Link href="/settings" />} aria-label="Settings">
-              <Settings aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
-            >
-              {/* resolvedTheme is undefined until next-themes hydrates; morphicons paints the first icon without animating */}
-              <MorphIcon icon={resolvedTheme ? (resolvedTheme === "dark" ? Moon : Sun) : undefined} spring="snappy" />
-            </Button>
-            {navidromeUrl && (
-              <Button
-                variant="outline"
-                className="max-sm:px-2"
-                render={<a href={navidromeUrl} target="_blank" rel="noreferrer" />}
-              >
-                {/* Below ~380px the label is dropped so the bar can never overflow. */}
-                <span className="max-[380px]:sr-only">Navidrome</span>
-                <ExternalLink aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-        </nav>
-      </header>
+      <SiteNav navidromeUrl={navidromeUrl} logoHref="#top" />
 
       <main className="flex-1">
         {/* Once results exist the hero collapses into a sticky search bar so results stay on screen. */}
@@ -646,7 +604,8 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
           </div>
         </section>
 
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        {/* The hero pads the top itself; once it collapses to the sticky bar the grid has to. */}
+        <div className={`mx-auto grid w-full max-w-6xl gap-10 px-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_21rem] ${compact ? "pt-8" : ""}`}>
           <section className="min-w-0" aria-live="polite" aria-busy={loading}>
             <div className="mb-4 flex min-h-8 items-center justify-between gap-4">
               <h2 className="min-w-0 truncate text-lg font-semibold text-balance">

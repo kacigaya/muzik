@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import { AUDIO_FORMATS, type AudioFormat } from "@/lib/types";
 import type { PublicNavidromeSettings } from "@/lib/settings";
@@ -27,6 +28,7 @@ export function SettingsPanel({
   pinned: boolean;
   navidrome: PublicNavidromeSettings;
 }) {
+  const router = useRouter();
   const [format, setFormat] = useState<AudioFormat>(AUDIO_FORMATS[0]);
   const [navidrome, setNavidrome] = useState(initialNavidrome);
   const [navidromeUrl, setNavidromeUrl] = useState(initialNavidrome.url);
@@ -72,6 +74,9 @@ export function SettingsPanel({
       setApiKey("");
       setPassword("");
       setNavidromeMessage(clearAuth ? "Navidrome credentials removed." : "Navidrome settings saved.");
+      // The nav bar renders the server-supplied URL, so it only learns about a new server
+      // once the surrounding server component re-renders.
+      router.refresh();
     } catch (cause) {
       setNavidromeError(cause instanceof Error ? cause.message : "Could not save Navidrome settings.");
     } finally {

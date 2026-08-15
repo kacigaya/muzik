@@ -94,8 +94,9 @@
   --border: --alpha(var(--color-black) / 8%);
   --primary: var(--color-stone-800);
   --primary-foreground: var(--color-stone-50);
-  /* Single identity accent, reserved for in-flight download state and the logo. */
-  --brand: var(--color-violet-600);
+  /* Accent for in-flight download state and selection. Tracks --primary, so the dark
+     override of --primary carries it without a second declaration. */
+  --brand: var(--primary);
   --ring: var(--color-stone-400);
   --accent: --alpha(var(--color-black) / 4%);
   --success: var(--color-emerald-500);
@@ -140,7 +141,6 @@
   --border: --alpha(var(--color-white) / 8%);
   --input: --alpha(var(--color-white) / 10%);
   --ring: var(--color-neutral-600);
-  --brand: var(--color-violet-400);
   --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
 }
 

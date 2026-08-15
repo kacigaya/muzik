@@ -1,10 +1,19 @@
 import { redirect } from "next/navigation";
 import { LibraryBrowser } from "@/components/library-browser";
-import { musicDir } from "@/lib/settings";
+import { SiteNav } from "@/components/site-nav";
+import { musicDir, publicNavidromeSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
   if (!(await musicDir())) redirect("/");
-  return <LibraryBrowser />;
+  const navidrome = await publicNavidromeSettings();
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <SiteNav navidromeUrl={navidrome.url} />
+      <main className="flex-1">
+        <LibraryBrowser />
+      </main>
+    </div>
+  );
 }
