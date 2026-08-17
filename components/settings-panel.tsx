@@ -12,6 +12,26 @@ import { Card } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+const RADIO_STEP: Record<string, number> = { ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1 };
+
+/**
+ * Keeps the arrow-key behaviour the radiogroup role promises: focus moves between the
+ * buttons, wraps around, and takes the selection with it.
+ */
+function moveRadioFocus(event: React.KeyboardEvent<HTMLDivElement>) {
+  const step = RADIO_STEP[event.key];
+  if (step === undefined && event.key !== "Home" && event.key !== "End") return;
+  const radios = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]:not(:disabled)'));
+  const current = radios.findIndex((radio) => radio === document.activeElement);
+  if (current < 0) return;
+  event.preventDefault();
+  let index = (current + (step ?? 0) + radios.length) % radios.length;
+  if (event.key === "Home") index = 0;
+  if (event.key === "End") index = radios.length - 1;
+  radios[index].focus();
+  radios[index].click();
+}
+
 const FORMAT_NOTE: Record<AudioFormat, string> = {
   m4a: "Kept as downloaded, no re-encoding",
   opus: "Smallest files at the same quality",
@@ -106,23 +126,29 @@ export function SettingsPanel({
           Applies to downloads you start from this browser. Anything already queued keeps the
           format it was added with.
         </p>
-        <div aria-labelledby="format-title" className="grid gap-2 sm:grid-cols-2" role="radiogroup">
+        <div
+          aria-labelledby="format-title"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+          onKeyDown={moveRadioFocus}
+          role="radiogroup"
+        >
           {AUDIO_FORMATS.map((option) => (
-            <Card
-              className={`min-w-0 cursor-pointer flex-row items-center gap-3 p-3 ${option === format ? "border-brand" : ""}`}
+            <Button
+              aria-checked={option === format}
+              className={`w-full justify-between font-mono uppercase ${option === format ? "border-brand" : ""}`}
               key={option}
-              render={
-                <button type="button" onClick={() => choose(option)} role="radio" aria-checked={option === format} />
-              }
+              onClick={() => choose(option)}
+              role="radio"
+              tabIndex={option === format ? 0 : -1}
+              variant="outline"
             >
-              <span className="flex min-w-0 flex-1 flex-col text-start">
-                <span className="font-mono text-sm uppercase">{option}</span>
-                <span className="truncate text-xs text-muted-foreground">{FORMAT_NOTE[option]}</span>
-              </span>
-              {option === format && <Check aria-hidden="true" className="size-4 shrink-0 text-brand" />}
-            </Card>
+              {option}
+              {option === format && <Check aria-hidden="true" className="text-brand opacity-100" />}
+            </Button>
           ))}
         </div>
+        {/* Only the chosen format keeps its note so the buttons stay the height of the other controls. */}
+        <p className="mt-2 text-xs text-muted-foreground">{FORMAT_NOTE[format]}</p>
       </section>
 
       <section aria-labelledby="navidrome-title" className="mb-8">
@@ -158,16 +184,25 @@ export function SettingsPanel({
 
             <fieldset className="flex flex-col gap-3" disabled={navidrome.authPinned}>
               <legend className="mb-2 text-sm font-medium">API authentication</legend>
-              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Navidrome authentication method">
+              <div
+                aria-label="Navidrome authentication method"
+                className="grid gap-2 sm:grid-cols-2"
+                onKeyDown={moveRadioFocus}
+                role="radiogroup"
+              >
                 {(["apiKey", "password"] as const).map((mode) => (
-                  <Card
-                    className={`cursor-pointer flex-row items-center justify-between p-3 ${authMode === mode ? "border-brand" : ""}`}
+                  <Button
+                    aria-checked={authMode === mode}
+                    className={`w-full justify-between ${authMode === mode ? "border-brand" : ""}`}
                     key={mode}
-                    render={<button type="button" role="radio" aria-checked={authMode === mode} onClick={() => setAuthMode(mode)} />}
+                    onClick={() => setAuthMode(mode)}
+                    role="radio"
+                    tabIndex={authMode === mode ? 0 : -1}
+                    variant="outline"
                   >
-                    <span className="text-sm">{mode === "apiKey" ? "API key" : "Username and password"}</span>
-                    {authMode === mode && <Check aria-hidden="true" className="size-4 text-brand" />}
-                  </Card>
+                    {mode === "apiKey" ? "API key" : "Username and password"}
+                    {authMode === mode && <Check aria-hidden="true" className="text-brand opacity-100" />}
+                  </Button>
                 ))}
               </div>
 

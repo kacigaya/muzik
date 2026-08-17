@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { ExternalLink, Library, Music2, Settings } from "lucide-react";
+import { ExternalLink, Music2 } from "lucide-react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
+import { AudioLinesIcon } from "@/components/icons/audio-lines";
+import { SettingsIcon } from "@/components/icons/settings";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
-  { href: "/library", label: "Browse the library", icon: Library },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/library", label: "Browse the library", icon: AudioLinesIcon },
+  { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 /** Shared by search, library, and settings so the same controls stay reachable on every page. */
@@ -40,7 +42,8 @@ export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string
                 aria-label={label}
                 aria-current={current ? "page" : undefined}
               >
-                <Icon aria-hidden="true" />
+                {/* Fills the button so the hover animation starts from anywhere inside it. */}
+                <Icon className="size-full" />
               </Button>
             );
           })}
