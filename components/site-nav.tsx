@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { ExternalLink, Music2 } from "lucide-react";
+import { Music2 } from "lucide-react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { AudioLinesIcon } from "@/components/icons/audio-lines";
+import { Disc3Icon, type Disc3IconHandle } from "@/components/icons/disc-3";
 import { SettingsIcon } from "@/components/icons/settings";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +21,7 @@ const LINKS = [
 export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string; logoHref?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const pathname = usePathname();
+  const discIcon = useRef<Disc3IconHandle>(null);
 
   return (
     <header className="px-4 pt-2 sm:px-8">
@@ -61,10 +64,13 @@ export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string
               variant="outline"
               className="max-sm:px-2"
               render={<a href={navidromeUrl} target="_blank" rel="noreferrer" />}
+              onMouseEnter={() => discIcon.current?.startAnimation()}
+              onMouseLeave={() => discIcon.current?.stopAnimation()}
             >
               {/* Below ~380px the label is dropped so the bar can never overflow. */}
               <span className="max-[380px]:sr-only">Navidrome</span>
-              <ExternalLink aria-hidden="true" />
+              {/* The label makes the button wider than the glyph, so hover is driven from here. */}
+              <Disc3Icon ref={discIcon} />
             </Button>
           )}
         </div>
