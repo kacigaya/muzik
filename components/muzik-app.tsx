@@ -119,6 +119,10 @@ function statusLabel(job: DownloadJob) {
   return job.status.replaceAll("_", " ");
 }
 
+function isActive(job: DownloadJob) {
+  return job.status === "queued" || job.status === "running" || job.status === "retrying";
+}
+
 function isCompleted(job: DownloadJob) {
   return job.status === "completed" || job.status === "completed_with_warnings";
 }
@@ -385,13 +389,19 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   async function clearFinished() {
     const response = await fetch("/api/jobs", { method: "DELETE" });
     const data = await response.json();
-    if (response.ok) setJobs(data.jobs as DownloadJob[]);
-    else setMessage(data.error ?? "Could not clear the queue.");
+    if (response.ok) {
+      setJobs(data.jobs as DownloadJob[]);
+      // Clearing is the only way the queue shrinks, so a later refill starts collapsed again.
+      setShowAllJobs(false);
+    } else setMessage(data.error ?? "Could not clear the queue.");
   }
 
-  const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running" || job.status === "retrying").length;
+  const activeJobs = jobs.filter(isActive).length;
   const runningJob = jobs.find((job) => job.status === "running");
-  const visibleJobs = showAllJobs ? jobs : jobs.slice(0, QUEUE_PREVIEW);
+  // The worker takes the newest queued job first, so unfinished work can sit anywhere in the
+  // list; floating it keeps live progress inside the preview.
+  const orderedJobs = [...jobs].sort((left, right) => Number(isActive(right)) - Number(isActive(left)));
+  const visibleJobs = showAllJobs ? orderedJobs : orderedJobs.slice(0, QUEUE_PREVIEW);
   const compact = Boolean(results) || loading;
   const following = new Set(subscriptions.map((entry) => entry.sourceId));
   // Newest job wins so a retried download reflects its latest attempt.

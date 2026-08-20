@@ -7,13 +7,13 @@ import { useTheme } from "next-themes";
 import { Music2 } from "lucide-react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { AudioLinesIcon } from "@/components/icons/audio-lines";
 import { Disc3Icon, type Disc3IconHandle } from "@/components/icons/disc-3";
+import { GalleryVerticalEndIcon } from "@/components/icons/gallery-vertical-end";
 import { SettingsIcon } from "@/components/icons/settings";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
-  { href: "/library", label: "Browse the library", icon: AudioLinesIcon },
+  { href: "/library", label: "Browse the library", icon: GalleryVerticalEndIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 

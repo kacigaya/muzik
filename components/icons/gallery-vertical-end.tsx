@@ -1,16 +1,28 @@
 "use client";
 
 import { motion, useAnimation, useReducedMotion } from "motion/react";
+import type { Variants } from "motion/react";
 import type { HTMLAttributes } from "react";
 import { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * From lucide-animated.com, trimmed to what this app uses: the wrapper stretches to its
- * container so hovering anywhere in an icon button runs the animation, and the glyph stays
- * still when the visitor asked for reduced motion.
- */
-export function SettingsIcon({ className, onMouseEnter, onMouseLeave, ...props }: HTMLAttributes<HTMLSpanElement>) {
+/** The two stacked sheets drop in one after the other, the topmost one last. */
+const SHEET: Variants = {
+  normal: { translateY: 0, opacity: 1 },
+  animate: (index: number) => ({
+    translateY: [2 * index, 0],
+    opacity: [0, 1],
+    transition: { delay: 0.25 * (2 - index), duration: 0.3 },
+  }),
+};
+
+/** From lucide-animated.com, trimmed the same way as {@link ./settings.tsx}. */
+export function GalleryVerticalEndIcon({
+  className,
+  onMouseEnter,
+  onMouseLeave,
+  ...props
+}: HTMLAttributes<HTMLSpanElement>) {
   const controls = useAnimation();
   const reducedMotion = useReducedMotion();
 
@@ -42,8 +54,7 @@ export function SettingsIcon({ className, onMouseEnter, onMouseLeave, ...props }
       onMouseLeave={handleMouseLeave}
       {...props}
     >
-      <motion.svg
-        animate={controls}
+      <svg
         aria-hidden="true"
         className="size-4.5 opacity-80 sm:size-4"
         fill="none"
@@ -51,14 +62,13 @@ export function SettingsIcon({ className, onMouseEnter, onMouseLeave, ...props }
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="2"
-        transition={{ type: "spring", stiffness: 50, damping: 10 }}
-        variants={{ normal: { rotate: 0 }, animate: { rotate: 180 } }}
         viewBox="0 0 24 24"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-        <circle cx="12" cy="12" r="3" />
-      </motion.svg>
+        <motion.path animate={controls} custom={1} d="M7 2h10" variants={SHEET} />
+        <motion.path animate={controls} custom={2} d="M5 6h14" variants={SHEET} />
+        <rect height="12" rx="2" width="18" x="3" y="10" />
+      </svg>
     </span>
   );
 }
