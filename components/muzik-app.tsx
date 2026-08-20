@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, BellOff, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
+import { BrushCleaningIcon, type BrushCleaningIconHandle } from "@/components/icons/brush-cleaning";
 import { SearchIcon, type SearchIconHandle } from "@/components/icons/search";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -35,6 +36,9 @@ const GROUPS: { key: GroupKey; label: string }[] = [
   { key: "playlists", label: "Playlists" },
 ];
 
+
+/** The queue only shows this many jobs until the visitor asks for the rest. */
+const QUEUE_PREVIEW = 6;
 
 const STATUS_BADGE: Record<JobStatus, BadgeProps["variant"]> = {
   queued: "secondary",
@@ -126,6 +130,7 @@ function focusSearch() {
 export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [query, setQuery] = useState("");
   const searchIcon = useRef<SearchIconHandle>(null);
+  const clearIcon = useRef<BrushCleaningIconHandle>(null);
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [results, setResults] = useState<SearchResponse | null>(null);
@@ -138,6 +143,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Record<string, SearchItem[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showAllJobs, setShowAllJobs] = useState(false);
   const jobStatuses = useRef<Map<string, JobStatus> | null>(null);
 
   const applyJobs = useCallback((nextJobs: DownloadJob[]) => {
@@ -385,6 +391,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
 
   const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running" || job.status === "retrying").length;
   const runningJob = jobs.find((job) => job.status === "running");
+  const visibleJobs = showAllJobs ? jobs : jobs.slice(0, QUEUE_PREVIEW);
   const compact = Boolean(results) || loading;
   const following = new Set(subscriptions.map((entry) => entry.sourceId));
   // Newest job wins so a retried download reflects its latest attempt.
@@ -681,13 +688,25 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                   <Badge className="bg-brand/12 font-mono text-brand tabular-nums">{activeJobs} active</Badge>
                 )}
                 {jobs.length > activeJobs && (
-                  <Button variant="ghost" size="xs" onClick={clearFinished}>Clear done</Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={clearFinished}
+                    onMouseEnter={() => clearIcon.current?.startAnimation()}
+                    onMouseLeave={() => clearIcon.current?.stopAnimation()}
+                    aria-label="Clear finished downloads"
+                    title="Clear finished downloads"
+                  >
+                    {/* Padding makes the button wider than the glyph, so hover is driven from here. */}
+                    <BrushCleaningIcon ref={clearIcon} />
+                  </Button>
                 )}
               </div>
             </div>
             {jobs.length ? (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                {jobs.map((job) => job.status === "completed" ? (
+              <>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1" id="queue-list">
+                {visibleJobs.map((job) => job.status === "completed" ? (
                   /* Finished downloads collapse to one line; anything unfinished or warned keeps the full card. */
                   <Card className="min-w-0 flex-row items-center gap-2.5 p-2" key={job.id}>
                     <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
@@ -774,6 +793,20 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                   </Card>
                 ))}
               </div>
+              {jobs.length > QUEUE_PREVIEW && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 w-full"
+                  onClick={() => setShowAllJobs((value) => !value)}
+                  aria-expanded={showAllJobs}
+                  aria-controls="queue-list"
+                >
+                  {showAllJobs ? "Show less" : `Show ${jobs.length - QUEUE_PREVIEW} more`}
+                  <ChevronDown aria-hidden="true" className={showAllJobs ? "rotate-180 transition-transform" : "transition-transform"} />
+                </Button>
+              )}
+              </>
             ) : (
               <Empty className="rounded-2xl border border-dashed py-10">
                 <EmptyHeader>
