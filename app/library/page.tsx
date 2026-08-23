@@ -3,8 +3,6 @@ import { LibraryBrowser } from "@/components/library-browser";
 import { SiteNav } from "@/components/site-nav";
 import { musicDir, publicNavidromeSettings } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
-
 export default async function LibraryPage() {
   if (!(await musicDir())) redirect("/");
   const navidrome = await publicNavidromeSettings();

@@ -1,8 +1,6 @@
 import { addSubscription, listSubscriptions, removeSubscription, syncDue } from "@/lib/subscriptions";
 import { validateJobId, validateSubscription } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   return Response.json({ subscriptions: await listSubscriptions() }, { headers: { "Cache-Control": "no-store" } });
 }

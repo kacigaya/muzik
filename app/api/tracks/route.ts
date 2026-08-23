@@ -1,8 +1,6 @@
 import { listTracks } from "@/lib/tracks";
 import { PLAYLIST_ID } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const kind = params.get("kind");

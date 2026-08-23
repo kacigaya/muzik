@@ -1,8 +1,6 @@
 import { searchMusic } from "@/lib/search";
 import { validateQuery } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
   try {
     const query = validateQuery(new URL(request.url).searchParams.get("q"));

@@ -3,8 +3,6 @@ import { SettingsPanel } from "@/components/settings-panel";
 import { SiteNav } from "@/components/site-nav";
 import { musicDir, pinnedByEnvironment, publicNavidromeSettings } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const library = await musicDir();
   if (!library) redirect("/");

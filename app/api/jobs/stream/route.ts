@@ -1,7 +1,5 @@
 import { jobStore } from "@/lib/jobs";
 
-export const dynamic = "force-dynamic";
-
 /** Pushes the queue on every change so the UI does not have to poll while downloading. */
 export async function GET(request: Request) {
   const encoder = new TextEncoder();

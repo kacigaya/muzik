@@ -2,8 +2,6 @@ import { externalLink, parseMusicLink } from "@/lib/link";
 import { resolveExternal, resolveLink } from "@/lib/resolve";
 import { validateLinkUrl } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
   try {
     const url = validateLinkUrl(new URL(request.url).searchParams.get("url"));

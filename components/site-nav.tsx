@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Music2 } from "lucide-react";
@@ -17,11 +17,14 @@ const LINKS = [
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const subscribeToHydration = () => () => {};
+
 /** Shared by search, library, and settings so the same controls stay reachable on every page. */
 export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string; logoHref?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const pathname = usePathname();
   const discIcon = useRef<Disc3IconHandle>(null);
+  const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
 
   return (
     <header className="px-4 pt-2 sm:px-8">
@@ -56,8 +59,10 @@ export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
           >
-            {/* resolvedTheme is undefined until next-themes hydrates; morphicons paints the first icon without animating */}
-            <MorphIcon icon={resolvedTheme ? (resolvedTheme === "dark" ? Moon : Sun) : undefined} spring="snappy" />
+            <MorphIcon
+              icon={hydrated && resolvedTheme ? (resolvedTheme === "dark" ? Moon : Sun) : undefined}
+              spring="snappy"
+            />
           </Button>
           {navidromeUrl && (
             <Button

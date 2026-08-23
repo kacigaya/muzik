@@ -1,7 +1,5 @@
 import { publicNavidromeSettings, saveNavidromeSettings } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   return Response.json({ navidrome: await publicNavidromeSettings() }, { headers: { "Cache-Control": "no-store" } });
 }

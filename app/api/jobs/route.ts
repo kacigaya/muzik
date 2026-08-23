@@ -1,8 +1,6 @@
 import { jobStore } from "@/lib/jobs";
 import { validateJobRequest } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   return Response.json({ jobs: await jobStore.list() }, { headers: { "Cache-Control": "no-store" } });
 }

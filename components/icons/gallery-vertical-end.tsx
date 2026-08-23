@@ -1,9 +1,7 @@
 "use client";
 
-import { motion, useAnimation, useReducedMotion } from "motion/react";
-import type { Variants } from "motion/react";
-import type { HTMLAttributes } from "react";
-import { useCallback, useEffect } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import type { HTMLMotionProps, Variants } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /** The two stacked sheets drop in one after the other, the topmost one last. */
@@ -22,39 +20,19 @@ export function GalleryVerticalEndIcon({
   onMouseEnter,
   onMouseLeave,
   ...props
-}: HTMLAttributes<HTMLSpanElement>) {
-  const controls = useAnimation();
+}: HTMLMotionProps<"span">) {
   const reducedMotion = useReducedMotion();
 
-  // Stops a running animation if the visitor turns reduced motion on while hovering.
-  useEffect(() => {
-    if (reducedMotion) controls.start("normal");
-  }, [controls, reducedMotion]);
-
-  const handleMouseEnter = useCallback(
-    (event: React.MouseEvent<HTMLSpanElement>) => {
-      if (!reducedMotion) controls.start("animate");
-      onMouseEnter?.(event);
-    },
-    [controls, onMouseEnter, reducedMotion],
-  );
-
-  const handleMouseLeave = useCallback(
-    (event: React.MouseEvent<HTMLSpanElement>) => {
-      controls.start("normal");
-      onMouseLeave?.(event);
-    },
-    [controls, onMouseLeave],
-  );
-
   return (
-    <span
+    <motion.span
+      animate="normal"
       className={cn("inline-flex items-center justify-center", className)}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      whileHover={reducedMotion ? undefined : "animate"}
       {...props}
     >
-      <svg
+      <motion.svg
         aria-hidden="true"
         className="size-4.5 opacity-80 sm:size-4"
         fill="none"
@@ -65,10 +43,10 @@ export function GalleryVerticalEndIcon({
         viewBox="0 0 24 24"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <motion.path animate={controls} custom={1} d="M7 2h10" variants={SHEET} />
-        <motion.path animate={controls} custom={2} d="M5 6h14" variants={SHEET} />
+        <motion.path custom={1} d="M7 2h10" variants={SHEET} />
+        <motion.path custom={2} d="M5 6h14" variants={SHEET} />
         <rect height="12" rx="2" width="18" x="3" y="10" />
-      </svg>
-    </span>
+      </motion.svg>
+    </motion.span>
   );
 }

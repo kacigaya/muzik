@@ -1,8 +1,6 @@
 import { deletionAllowed, listLibrary, removeFromLibrary } from "@/lib/library";
 import { validateLibraryPath } from "@/lib/validation";
 
-export const dynamic = "force-dynamic";
-
 function failure(cause: unknown) {
   const message = cause instanceof Error ? cause.message : "Library request failed.";
   const code = (cause as NodeJS.ErrnoException).code;

@@ -1,7 +1,5 @@
 import { musicDir, pinnedByEnvironment, saveMusicDir } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   return Response.json(
     { musicDir: await musicDir(), pinned: pinnedByEnvironment() },
