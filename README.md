@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/icon.svg" alt="Logo" width="200">
+  <img src="app/icon.svg" alt="Muzik logo" width="140">
 </p>
 
 <h1 align="center">Muzik</h1>
@@ -7,6 +7,14 @@
 <p align="center">
    <strong>A YouTube Music search and download front end for your own music library.</strong><br>
    <em>Search or paste a link, queue the download, and the tracks land tagged on disk.</em>
+</p>
+
+<p align="center">
+  <a href="https://nextjs.org"><img alt="Next.js 16.3.2" src="https://shieldcn.dev/badge/Next.js-16.3.2-171717.svg?variant=secondary&amp;logo=nextdotjs"></a>
+  <a href="https://nodejs.org"><img alt="Node.js 22+" src="https://shieldcn.dev/badge/Node.js-22+-5fa04e.svg?variant=secondary&amp;logo=nodedotjs"></a>
+  <a href="https://tailwindcss.com"><img alt="Tailwind CSS 4" src="https://shieldcn.dev/badge/Tailwind_CSS-4-06b6d4.svg?variant=secondary&amp;logo=tailwindcss"></a>
+  <a href="https://www.docker.com"><img alt="Docker" src="https://shieldcn.dev/badge/Docker-ready-2496ed.svg?variant=secondary&amp;logo=docker"></a>
+  <a href="https://github.com/kacigaya/muzik/blob/main/LICENSE"><img alt="MIT License" src="https://shieldcn.dev/github/license/kacigaya/muzik.svg?variant=secondary"></a>
 </p>
 
 Muzik writes into a directory you choose, in an `Artist/Album/Track` layout that Navidrome,
