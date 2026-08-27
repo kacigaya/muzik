@@ -3,16 +3,20 @@ import test from "node:test";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { formatSelector, sourceUrl, upgradeJobs } from "../lib/jobs.ts";
+import { formatSelector, sourceUrl, upgradeJobs, YOUTUBE_EXTRACTOR_ARGS } from "../lib/jobs.ts";
 import { externalLink, isMusicLink } from "../lib/link.ts";
 import { isDue } from "../lib/subscriptions.ts";
 import { sourceIdFromName, deletionAllowed } from "../lib/library.ts";
 import { validateJobRequest, validateLibraryPath, validateSubscription } from "../lib/validation.ts";
 
 test("keeps m4a untouched and re-encodes every other format", () => {
-  assert.equal(formatSelector("m4a"), "bestaudio[ext=m4a]/bestaudio");
+  assert.equal(formatSelector("m4a"), "bestaudio[ext=m4a]/bestaudio/best");
   assert.equal(formatSelector("opus"), "bestaudio/best");
   assert.equal(formatSelector("flac"), "bestaudio/best");
+});
+
+test("uses the embeddable YouTube client before the Android VR fallback", () => {
+  assert.equal(YOUTUBE_EXTRACTOR_ARGS, "youtube:player_client=web_embedded,android_vr");
 });
 
 test("downloads external links from the link itself", () => {

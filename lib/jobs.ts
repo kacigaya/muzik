@@ -15,6 +15,7 @@ import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJo
 const exec = promisify(execFile);
 const TERMINAL_LIMIT = 100;
 const TRANSIENT_RETRY_COOLDOWN_MS = 5_000;
+export const YOUTUBE_EXTRACTOR_ARGS = "youtube:player_client=web_embedded,android_vr";
 const DEFAULT_OUTPUT_TEMPLATE =
   "%(artist,uploader|Unknown Artist)s/%(album,playlist|Singles)s/%(track_number,playlist_index|00)02d - %(track,title)s [%(id)s].%(ext)s";
 
@@ -31,7 +32,7 @@ export function sourceUrl(job: Pick<DownloadJob, "kind" | "sourceId"> & { url?: 
 
 /** yt-dlp keeps the best m4a when asked for one, and otherwise re-encodes from the best audio. */
 export function formatSelector(format: AudioFormat) {
-  return format === "m4a" ? "bestaudio[ext=m4a]/bestaudio" : "bestaudio/best";
+  return format === "m4a" ? "bestaudio[ext=m4a]/bestaudio/best" : "bestaudio/best";
 }
 
 /**
@@ -270,6 +271,7 @@ export class JobStore {
       "--progress",
       "--ignore-errors",
       "--js-runtimes", `node:${process.execPath}`,
+      "--extractor-args", YOUTUBE_EXTRACTOR_ARGS,
       "--download-archive", join(this.dataDir, "downloaded.txt"),
       "--paths", `home:${musicRoot}`,
       "--paths", `temp:${jobTemp}`,
