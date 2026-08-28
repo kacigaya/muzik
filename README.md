@@ -93,6 +93,13 @@ want for an automated deployment.
 Muzik has no authentication. Bind it to a private interface or put it behind whatever
 front end you already use for the rest of your services.
 
+Since same-origin is the only boundary left, the API refuses a state-changing request
+that a browser reports as coming from somewhere else. That stops a page you happen to be
+visiting from queueing downloads or deleting tracks on your behalf, but it is not a
+substitute for keeping Muzik off the open internet. Clients that are not browsers, like
+`curl` or the container health check, are unaffected. Set `MUZIK_ALLOWED_ORIGINS` if
+another hostname of yours has to reach the API.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -115,6 +122,7 @@ front end you already use for the rest of your services.
 | `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
 | `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
 | `MUZIK_ALLOW_DELETE` | unset | Set to `1` to allow deleting files from the library browser |
+| `MUZIK_ALLOWED_ORIGINS` | unset | Comma-separated origins allowed to make state-changing API requests on top of Muzik's own |
 
 To scan Navidrome after a download, set `NAVIDROME_URL` and either
 `MUZIK_NAVIDROME_API_KEY` or both username and password variables. Muzik calls the
