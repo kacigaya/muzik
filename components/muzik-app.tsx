@@ -224,8 +224,9 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
     return () => window.removeEventListener("storage", restoreFormat);
   }, [loadSubscriptions]);
 
-  // SSE gives immediate updates when supported. Polling always stays active because some
-  // proxies deliver the first event, then buffer later events on the same connection.
+  // SSE gives immediate updates when supported. Kept out of the polling effect because it
+  // must not be torn down every time the queue goes busy or idle: reconnecting drops the
+  // events that arrive in between, which is exactly when they matter most.
   useEffect(() => {
     const source = new EventSource("/api/jobs/stream");
     source.onmessage = (event) => {
@@ -233,14 +234,19 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
         applyJobs(JSON.parse(event.data).jobs as DownloadJob[]);
       } catch { /* malformed frame, the next one replaces it */ }
     };
-    const timer = window.setInterval(loadJobs, busy ? 1_000 : 5_000);
     const initial = window.setTimeout(loadJobs, 0);
     return () => {
       source.close();
       window.clearTimeout(initial);
-      window.clearInterval(timer);
     };
-  }, [applyJobs, busy, loadJobs]);
+  }, [applyJobs, loadJobs]);
+
+  // Polling always stays active because some proxies deliver the first event, then buffer
+  // later events on the same connection. Only the interval follows the queue.
+  useEffect(() => {
+    const timer = window.setInterval(loadJobs, busy ? 1_000 : 5_000);
+    return () => window.clearInterval(timer);
+  }, [busy, loadJobs]);
 
   async function searchMusic(event: React.FormEvent) {
     event.preventDefault();
