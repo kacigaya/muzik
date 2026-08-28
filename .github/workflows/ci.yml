@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push makes the run in progress irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # npm test runs the Python suite through .venv, so the path has to match the one a
+      # developer gets from the README.
+      - name: Install the Python bridge
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check -r requirements.txt
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build
+
+      # Advisories below high are reported without failing the run, so a transitive
+      # low-severity finding cannot block an unrelated fix.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image installs its own ffmpeg, Python, and yt-dlp, so building it is the only
+      # thing that checks the documented Docker path still works.
+      - run: docker build -t muzik:ci .
