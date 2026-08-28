@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Folder, Music2, Trash2 } from "lucide-react";
 import type { LibraryEntry } from "@/lib/types";
+import { trackTitleFromName } from "@/lib/track-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -71,7 +72,8 @@ export function LibraryBrowser() {
         kind: "song",
         sourceId: entry.sourceId,
         url: null,
-        title: entry.name,
+        // The queue shows this, so it gets the title rather than the file name yt-dlp wrote.
+        title: trackTitleFromName(entry.name),
         subtitle: parentOf(entry.path) || "Library",
         thumbnail: null,
       }),
