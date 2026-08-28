@@ -225,3 +225,15 @@ test("a scratch cleanup that cannot succeed does not take the queue down with it
   assert.ok(second, "the queue must keep draining after a cleanup failure");
   assert.equal(second.status, "completed");
 });
+
+test("reads the track number, title, and source id back out of a file name", async () => {
+  const { sourceIdFromName, trackTitleFromName } = await import("../lib/track-name.ts");
+  assert.equal(trackTitleFromName("01 - Paranoid Android [dQw4w9WgXcQ].m4a"), "Paranoid Android");
+  assert.equal(trackTitleFromName("07 - Let Down.opus"), "Let Down");
+  assert.equal(trackTitleFromName("Karma Police [dQw4w9WgXcQ].flac"), "Karma Police");
+  assert.equal(sourceIdFromName("01 - Paranoid Android [dQw4w9WgXcQ].m4a"), "dQw4w9WgXcQ");
+  // A name that does not follow the template is shown as it is rather than mangled.
+  assert.equal(trackTitleFromName("whatever.mp3"), "whatever");
+  assert.equal(trackTitleFromName("no-extension"), "no-extension");
+  assert.equal(sourceIdFromName("01 - Title [short].m4a"), null);
+});
