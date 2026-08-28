@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start -H ${HOST:-127.0.0.1} -p ${PORT:-3020}",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "organize": "node --experimental-strip-types scripts/organize_music.mjs",
     "test": "node --test --experimental-strip-types tests/*.test.mjs && .venv/bin/python -m unittest discover -s scripts -p '*_test.py'"
   },
