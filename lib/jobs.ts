@@ -343,6 +343,24 @@ export class JobStore {
     timer.unref();
   }
 
+  /**
+   * Best effort by design: this runs after the download is already on disk, so a leftover
+   * scratch directory is a far smaller problem than losing the result over it. The sudo
+   * fallback still covers host installs where the scratch root is owned by another user,
+   * and simply fails on images that ship without sudo. The next run of the same job id
+   * overwrites the directory anyway.
+   */
+  private async discardScratch(jobId: string) {
+    const scratch = join(this.tempDir, jobId);
+    try {
+      await rm(scratch, { recursive: true, force: true });
+    } catch {
+      try {
+        await exec("sudo", ["-n", "rm", "-rf", "--", scratch]);
+      } catch { /* the scratch directory outlives the job */ }
+    }
+  }
+
   private async download(job: DownloadJob): Promise<void> {
     if (job.status !== "queued") return;
     const musicRoot = await musicDir();
@@ -421,11 +439,7 @@ export class JobStore {
     if (stderr.startsWith("ERROR:")) errors.push(stderr);
     this.activeProcess = null;
     this.activeJobId = null;
-    try {
-      await rm(join(this.tempDir, job.id), { recursive: true, force: true });
-    } catch {
-      await exec("sudo", ["-n", "rm", "-rf", "--", join(this.tempDir, job.id)]);
-    }
+    await this.discardScratch(job.id);
     if (this.jobs.find((candidate) => candidate.id === job.id)?.status === "cancelled") {
       await this.persist();
       return;
