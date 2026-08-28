@@ -2,16 +2,12 @@ import { readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises
 import { extname, join, relative } from "node:path";
 import { safeMusicPath } from "./metadata.ts";
 import { musicDir } from "./settings.ts";
-import { VIDEO_ID } from "./validation.ts";
+import { sourceIdFromName } from "./track-name.ts";
 import type { LibraryEntry } from "./types.ts";
 
 const AUDIO_EXTENSIONS = new Set([".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"]);
 
-/** Muzik names downloads "... [videoId].ext", which is how a track finds its source again. */
-export function sourceIdFromName(name: string) {
-  const match = name.match(/\[([A-Za-z0-9_-]{11})\]\.[^.]+$/);
-  return match && VIDEO_ID.test(match[1]) ? match[1] : null;
-}
+export { sourceIdFromName };
 
 export function deletionAllowed() {
   return /^(1|true|yes|on)$/i.test(process.env.MUZIK_ALLOW_DELETE ?? "");
