@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { parseProgress } from "../lib/progress.ts";
 import { validateJobId, validateJobRequest, validateLinkUrl, validateQuery } from "../lib/validation.ts";
 import { canCancel, canRetry, isRetryableYoutubeError, recoverJobs, sourceUrl } from "../lib/jobs.ts";
@@ -123,4 +124,12 @@ test("accepts only downloaded files inside music library", () => {
   assert.equal(safeMusicPath("/music", "Artist/Album/song.m4a"), "/music/Artist/Album/song.m4a");
   assert.equal(safeMusicPath("/music", "/music/../etc/passwd"), null);
   assert.equal(safeMusicPath("/music", "/music"), null);
+});
+
+test("identifies Muzik to MusicBrainz and lrclib the way their policies require", async () => {
+  const { USER_AGENT } = await import("../lib/user-agent.ts");
+  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  // MusicBrainz rejects an agent without an application, a version, and a contact.
+  assert.match(USER_AGENT, /^Muzik\/\d+\.\d+\.\d+ \( https:\/\/\S+ \)$/);
+  assert.ok(USER_AGENT.includes(pkg.version), "a release must not leave a stale version behind");
 });
