@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { access, writeFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { promisify } from "node:util";
+import { USER_AGENT } from "./user-agent.ts";
 
 const exec = promisify(execFile);
 const LRCLIB_URL = "https://lrclib.net/api/get";
@@ -45,7 +46,7 @@ async function lookup(track: Track) {
     duration: String(track.durationSeconds),
   });
   const response = await fetch(`${LRCLIB_URL}?${query}`, {
-    headers: { Accept: "application/json", "User-Agent": "Muzik (https://github.com/kacigaya/muzik)" },
+    headers: { Accept: "application/json", "User-Agent": USER_AGENT },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) return null;

@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { chmod, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
+import { USER_AGENT } from "./user-agent.ts";
 
 const exec = promisify(execFile);
 const AUDIO_EXTENSIONS = new Set([".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"]);
@@ -88,7 +89,7 @@ async function queryArtist(artist: string) {
   lastMusicBrainzRequest = Date.now();
   const query = new URLSearchParams({ query: `artist:\"${artist.replaceAll('"', "")}\"`, fmt: "json", limit: "5" });
   const response = await fetch(`${MUSICBRAINZ_URL}?${query}`, {
-    headers: { Accept: "application/json", "User-Agent": "Muzik/0.1.0" },
+    headers: { Accept: "application/json", "User-Agent": USER_AGENT },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error(`MusicBrainz returned HTTP ${response.status}.`);
