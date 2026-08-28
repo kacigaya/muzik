@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { formatSelector, sourceUrl, upgradeJobs, YOUTUBE_EXTRACTOR_ARGS } from "../lib/jobs.ts";
 import { externalLink, isMusicLink } from "../lib/link.ts";
 import { isDue } from "../lib/subscriptions.ts";
@@ -144,4 +145,83 @@ test("refuses to delete outside the library", async (t) => {
   const library = await import("../lib/library.ts?case=escape");
   await assert.rejects(() => library.removeFromLibrary("../escape"), /outside|invalid/i);
   await assert.rejects(() => library.removeFromLibrary(""), /invalid/i);
+});
+
+test("a scratch cleanup that cannot succeed does not take the queue down with it", async (t) => {
+  const musicRoot = await mkdtemp(join(tmpdir(), "muzik-worker-music-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "muzik-worker-data-"));
+  const scratchRoot = await mkdtemp(join(tmpdir(), "muzik-worker-tmp-"));
+  const binDir = await mkdtemp(join(tmpdir(), "muzik-worker-bin-"));
+
+  // Reports a finished download, then leaves a scratch directory it has made impossible to
+  // remove: the leftover file cannot be unlinked out of a 0500 directory.
+  const ytDlp = join(binDir, "yt-dlp");
+  await writeFile(ytDlp, [
+    "#!/bin/sh",
+    'while [ $# -gt 0 ]; do',
+    '  case "$1" in',
+    '    temp:*)',
+    '      scratch="${1#temp:}"',
+    '      mkdir -p "$scratch" && : > "$scratch/fragment" && chmod 0500 "$scratch"',
+    '      ;;',
+    '  esac',
+    '  shift',
+    'done',
+    "exit 0",
+    "",
+  ].join("\n"));
+  await chmod(ytDlp, 0o755);
+  // Stands in for the deployments where the sudo fallback cannot work either.
+  const sudo = join(binDir, "sudo");
+  await writeFile(sudo, "#!/bin/sh\nexit 1\n");
+  await chmod(sudo, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${previousPath}`;
+  process.env.MUZIK_MUSIC_DIR = musicRoot;
+  process.env.MUZIK_DATA_DIR = dataDir;
+  process.env.MUZIK_TEMP_DIR = scratchRoot;
+  process.env.MUZIK_YTDLP = ytDlp;
+  process.env.MUZIK_MIN_FREE_MB = "0";
+  for (const name of [
+    "MUZIK_LYRICS", "MUZIK_VPN_CONTAINER", "MUZIK_NAVIDROME_CONTAINER",
+    "MUZIK_NAVIDROME_API_KEY", "MUZIK_NAVIDROME_USERNAME", "MUZIK_NAVIDROME_PASSWORD", "NAVIDROME_URL",
+  ]) delete process.env[name];
+
+  const scratchDirs = [];
+  t.after(async () => {
+    process.env.PATH = previousPath;
+    for (const name of ["MUZIK_MUSIC_DIR", "MUZIK_DATA_DIR", "MUZIK_TEMP_DIR", "MUZIK_YTDLP", "MUZIK_MIN_FREE_MB"]) {
+      delete process.env[name];
+    }
+    for (const scratch of scratchDirs) await chmod(scratch, 0o700).catch(() => {});
+  });
+
+  const { JobStore } = await import("../lib/jobs.ts?case=worker");
+  const store = new JobStore();
+  const download = async (sourceId, title) => {
+    const { job } = await store.create({
+      kind: "song", sourceId, url: null, title, subtitle: "Test", thumbnail: null, format: "m4a",
+    });
+    scratchDirs.push(join(scratchRoot, job.id));
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const current = (await store.list()).find((candidate) => candidate.id === job.id);
+      if (current && !["queued", "running", "retrying"].includes(current.status)) return current;
+      await sleep(50);
+    }
+    return null;
+  };
+
+  const first = await download("aaaaaaaaaaa", "First");
+  assert.ok(first, "the job must not be stranded by a cleanup it cannot finish");
+  assert.equal(first.status, "completed", "cleanup is cosmetic and must not lose the download");
+  await assert.doesNotReject(
+    () => stat(join(scratchRoot, first.id)),
+    "the scratch directory has to survive, or the cleanup never actually failed",
+  );
+
+  // The worker survived, so the store still accepts and drains work.
+  const second = await download("bbbbbbbbbbb", "Second");
+  assert.ok(second, "the queue must keep draining after a cleanup failure");
+  assert.equal(second.status, "completed");
 });
