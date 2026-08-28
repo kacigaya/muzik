@@ -164,10 +164,14 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 ### Validation
 
 ```bash
-npm test       # node --test plus the Python unittest suite
+npm test         # node --test plus the Python unittest suite
 npm run lint
+npm run typecheck
 npm run build
 ```
+
+GitHub Actions runs all four on every push and pull request, plus `npm audit` and a build
+of the Docker image.
 
 `npm run start` serves the production build on `127.0.0.1:3020`. Set `HOST` and `PORT` to
 change that.
