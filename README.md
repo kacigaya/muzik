@@ -129,6 +129,15 @@ To scan Navidrome after a download, set `NAVIDROME_URL` and either
 OpenSubsonic `startScan` endpoint. If API credentials are unset, it uses
 `MUZIK_NAVIDROME_CONTAINER` as a local fallback.
 
+Navidrome credentials can also be entered on the settings page instead of set here. Those
+are written to `settings.json` in the data directory in plain text, with the file mode set
+to `0600`, because Muzik has no accounts and so no user key to encrypt them with. The
+API key and the password never come back out to the browser — the settings page is only
+told whether each is configured — but anyone who can read the data directory can read them.
+Prefer the environment variables if that matters to you; they take precedence and are
+never written to disk. Note that the Subsonic password scheme hashes the password with a
+per-request salt, so Muzik has to keep the password itself and not a hash of it.
+
 The Docker image sets the paths and the Python bindings so `/music` and `/data` work out
 of the box.
 
