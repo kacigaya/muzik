@@ -237,7 +237,18 @@ export class JobStore {
     try {
       let job = this.jobs.find((candidate) => candidate.status === "queued");
       while (job) {
-        await this.download(job);
+        try {
+          await this.download(job);
+        } catch {
+          // A job left queued would be picked again on the very next iteration, so the
+          // status has to move even when the throw came before download() marked it running.
+          if (canCancel(job)) {
+            job.status = "failed";
+            job.error = "Download stopped unexpectedly. Check service logs for details.";
+            job.updatedAt = now();
+            try { await this.persist(); } catch { /* the in-memory status already frees the queue */ }
+          }
+        }
         job = this.jobs.find((candidate) => candidate.status === "queued");
       }
     } finally {
