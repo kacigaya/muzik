@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, BellOff, BrushCleaning, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -704,7 +704,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                     aria-label="Clear finished downloads"
                     title="Clear finished downloads"
                   >
-                    <BrushCleaning aria-hidden="true" />
+                    <Brush aria-hidden="true" />
                   </Button>
                 )}
               </div>
