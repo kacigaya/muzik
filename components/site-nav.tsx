@@ -26,7 +26,7 @@ export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string
 
   return (
     <header className="px-4 pt-2 sm:px-8">
-      <nav aria-label="Primary navigation" className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-2 rounded-xl border bg-card/80 pl-3 pr-1.5 shadow-sm backdrop-blur sm:pl-4 sm:pr-2">
+      <nav aria-label="Primary navigation" className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-2 rounded-xl border bg-card pl-3 pr-1.5 shadow-sm sm:pl-4 sm:pr-2">
         <Link
           className="flex min-w-0 items-center gap-2.5 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           href={logoHref}

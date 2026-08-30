@@ -546,7 +546,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
       <main className="flex-1">
         {/* Once results exist the hero collapses into a sticky search bar so results stay on screen. */}
         <section
-          className={compact ? "sticky top-0 z-30 border-b bg-background/85 px-4 py-3 backdrop-blur" : "px-4 py-14 sm:py-20"}
+          className={compact ? "sticky top-0 z-30 border-b bg-background px-4 py-3" : "px-4 py-14 sm:py-20"}
           id="top"
           aria-labelledby="page-title"
         >
@@ -870,7 +870,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
       {/* On small screens the queue sits far below the results, so active work gets a persistent bar. */}
       {activeJobs > 0 && (
         <a
-          className="fixed inset-x-3 bottom-[max(--spacing(3),env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-xl border bg-card/95 px-3 py-2 shadow-sm outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          className="fixed inset-x-3 bottom-[max(--spacing(3),env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-xl border bg-card px-3 py-2 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           href="#queue-title"
         >
           <Spinner aria-hidden="true" role="presentation" className="size-4 shrink-0 text-brand" />
