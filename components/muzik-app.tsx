@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, BrushCleaning, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
-import { BrushCleaningIcon, type BrushCleaningIconHandle } from "@/components/icons/brush-cleaning";
-import { SearchIcon, type SearchIconHandle } from "@/components/icons/search";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
 import { isMusicLink } from "@/lib/link";
@@ -133,8 +131,6 @@ function focusSearch() {
 
 export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [query, setQuery] = useState("");
-  const searchIcon = useRef<SearchIconHandle>(null);
-  const clearIcon = useRef<BrushCleaningIconHandle>(null);
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [results, setResults] = useState<SearchResponse | null>(null);
@@ -564,12 +560,9 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
             <p className={compact ? "hidden" : "mx-auto mt-4 max-w-lg text-pretty text-sm text-muted-foreground sm:text-base"}>
               Search YouTube Music, then save songs, albums, and playlists directly to Navidrome.
             </p>
-            {/* The addon cannot take pointer events, so the whole field drives its animation. */}
             <form
               onSubmit={searchMusic}
               className={`relative mx-auto max-w-xl ${compact ? "" : "mt-8"}`}
-              onMouseEnter={() => searchIcon.current?.startAnimation()}
-              onMouseLeave={() => searchIcon.current?.stopAnimation()}
             >
               <Field name="query">
                 <FieldLabel className="sr-only">Search music</FieldLabel>
@@ -584,7 +577,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                   <AutocompleteInput
                     id="music-search"
                     size="lg"
-                    startAddon={<SearchIcon ref={searchIcon} />}
+                    startAddon={<Search aria-hidden="true" />}
                     className="rounded-xl before:rounded-[calc(var(--radius-xl)-1px)] shadow-sm/5 *:data-[slot=input]:pe-24"
                     minLength={2}
                     maxLength={300}
@@ -592,7 +585,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                     aria-describedby={message ? "search-message" : undefined}
                   />
                   <Button type="submit" size="sm" loading={loading} disabled={query.trim().length < 2} className="absolute end-1 top-1/2 z-10 -translate-y-1/2">
-                      <SearchIcon className="sm:hidden" />
+                      <Search aria-hidden="true" className="sm:hidden" />
                       <span className="max-sm:sr-only">Search</span>
                   </Button>
                   <AutocompletePopup>
@@ -708,13 +701,10 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                     variant="ghost"
                     size="icon-sm"
                     onClick={clearFinished}
-                    onMouseEnter={() => clearIcon.current?.startAnimation()}
-                    onMouseLeave={() => clearIcon.current?.stopAnimation()}
                     aria-label="Clear finished downloads"
                     title="Clear finished downloads"
                   >
-                    {/* Padding makes the button wider than the glyph, so hover is driven from here. */}
-                    <BrushCleaningIcon ref={clearIcon} />
+                    <BrushCleaning aria-hidden="true" />
                   </Button>
                 )}
               </div>
