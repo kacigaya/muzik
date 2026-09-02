@@ -10,10 +10,11 @@ import { isDue } from "../lib/subscriptions.ts";
 import { sourceIdFromName, deletionAllowed } from "../lib/library.ts";
 import { validateJobRequest, validateLibraryPath, validateSubscription } from "../lib/validation.ts";
 
-test("keeps m4a untouched and re-encodes every other format", () => {
+test("keeps m4a untouched and uses native AAC or Opus for lossless fallback", () => {
   assert.equal(formatSelector("m4a"), "bestaudio[ext=m4a]/bestaudio/best");
   assert.equal(formatSelector("opus"), "bestaudio/best");
   assert.equal(formatSelector("flac"), "bestaudio/best");
+  assert.equal(formatSelector("lossless"), "bestaudio[acodec^=mp4a]/bestaudio[acodec^=opus]/bestaudio/best");
 });
 
 test("uses the embeddable YouTube client before the Android VR fallback", () => {
@@ -43,6 +44,11 @@ test("backfills jobs written by an older release", () => {
   assert.equal(job.format, "m4a");
   assert.equal(job.speed, null);
   assert.equal(job.etaSeconds, null);
+  assert.equal(job.artist, null);
+  assert.equal(job.durationSeconds, null);
+  assert.equal(job.qobuzItems, 0);
+  assert.equal(job.fallbackItems, 0);
+  assert.equal(job.skippedItems, 0);
 });
 
 test("drops values a hand-edited jobs.json could smuggle into yt-dlp", () => {

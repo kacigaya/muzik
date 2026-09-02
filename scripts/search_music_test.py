@@ -16,6 +16,8 @@ class SearchNormalizationTest(unittest.TestCase):
         album = normalize_album({"playlistId": "OLAK5uy_example", "title": "Album", "artist": "Artist", "year": "2026"})
         playlist = normalize_playlist({"browseId": "VLPL_example123", "title": "Mix", "author": "Owner", "itemCount": "1,234"})
         self.assertEqual(song["subtitle"], "Artist · Album")
+        self.assertEqual(song["artist"], "Artist")
+        self.assertEqual(song["album"], "Album")
         self.assertEqual(album["sourceId"], "OLAK5uy_example")
         self.assertEqual(playlist["sourceId"], "PL_example123")
         self.assertEqual(playlist["itemCount"], 1234)
@@ -37,6 +39,8 @@ class ResolveNormalizationTest(unittest.TestCase):
         self.assertEqual(song["sourceId"], "abcdefghijk")
         self.assertEqual(song["subtitle"], "Artist")
         self.assertEqual(song["durationSeconds"], 123)
+        self.assertEqual(song["artist"], "Artist")
+        self.assertIsNone(song["album"])
         self.assertEqual(song["thumbnail"], "https://i.ytimg.com/big.jpg")
 
     def test_rejects_unplayable_song(self):
@@ -50,6 +54,8 @@ class ResolveNormalizationTest(unittest.TestCase):
         self.assertEqual(album["sourceId"], "OLAK5uy_example")
         self.assertEqual(album["subtitle"], "Artist · 2017")
         self.assertEqual(album["itemCount"], 10)
+        self.assertEqual(album["artist"], "Artist")
+        self.assertEqual(album["album"], "Album")
 
     def test_normalizes_resolved_playlist(self):
         playlist = normalize_resolved_playlist("playlist", "PL_example123", {"title": "Mix", "author": {"name": "Owner"}, "trackCount": 25, "thumbnails": []})

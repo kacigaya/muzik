@@ -31,6 +31,18 @@ function boundedText(value: unknown, name: string, max: number): string {
   return text;
 }
 
+function optionalText(value: unknown, name: string, max: number): string | null {
+  if (value == null || value === "") return null;
+  return boundedText(value, name, max);
+}
+
+function optionalInteger(value: unknown, name: string, maximum: number): number | null {
+  if (value == null) return null;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0 || number > maximum) throw new Error(`${name} is invalid.`);
+  return number;
+}
+
 export function validateFormat(value: unknown): AudioFormat {
   if (value == null) return defaultFormat();
   if (!AUDIO_FORMATS.includes(value as AudioFormat)) throw new Error("Audio format is unsupported.");
@@ -71,7 +83,11 @@ export function validateJobRequest(value: unknown): CreateJobRequest {
     url,
     title: boundedText(body.title, "Title", 300),
     subtitle: boundedText(body.subtitle, "Subtitle", 300),
+    artist: optionalText(body.artist, "Artist", 300),
+    album: optionalText(body.album, "Album", 300),
     thumbnail,
+    durationSeconds: optionalInteger(body.durationSeconds, "Duration", 24 * 60 * 60),
+    trackNumber: optionalInteger(body.trackNumber, "Track number", 10_000),
     format: validateFormat(body.format),
   };
 }

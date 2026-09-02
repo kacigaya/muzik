@@ -15,7 +15,11 @@ const BASE_JOB = {
   url: null,
   title: "Song",
   subtitle: "Artist",
+  artist: "Artist",
+  album: "Album",
   thumbnail: null,
+  durationSeconds: 180,
+  trackNumber: 1,
   format: "m4a",
   status: "queued",
   progress: 0,
@@ -24,6 +28,9 @@ const BASE_JOB = {
   itemIndex: null,
   itemCount: null,
   downloadedItems: 0,
+  qobuzItems: 0,
+  fallbackItems: 0,
+  skippedItems: 0,
   warningCount: 0,
   error: null,
   metadataWarning: null,
@@ -37,8 +44,20 @@ test("validates search and download trust boundaries", () => {
   assert.throws(() => validateQuery("x"), /between 2 and 120/);
   assert.throws(() => validateJobId("../../etc/passwd"), /invalid/);
   assert.deepEqual(validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "Song", subtitle: "Artist", thumbnail: "https://i.ytimg.com/a.jpg" }), {
-    kind: "song", sourceId: "abcdefghijk", url: null, title: "Song", subtitle: "Artist", thumbnail: "https://i.ytimg.com/a.jpg", format: "m4a",
+    kind: "song", sourceId: "abcdefghijk", url: null, title: "Song", subtitle: "Artist", artist: null, album: null,
+    thumbnail: "https://i.ytimg.com/a.jpg", durationSeconds: null, trackNumber: null, format: "m4a",
   });
+  assert.deepEqual(
+    validateJobRequest({
+      kind: "song", sourceId: "abcdefghijk", title: "Song", subtitle: "Artist", artist: "Artist", album: "Album",
+      durationSeconds: 180, trackNumber: 2, format: "lossless",
+    }),
+    {
+      kind: "song", sourceId: "abcdefghijk", url: null, title: "Song", subtitle: "Artist", artist: "Artist", album: "Album",
+      thumbnail: null, durationSeconds: 180, trackNumber: 2, format: "lossless",
+    },
+  );
+  assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", durationSeconds: -1 }), /Duration is invalid/);
   assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", format: "wav" }), /unsupported/);
   assert.throws(() => validateJobRequest({ kind: "playlist", sourceId: "PLgood;touch_bad", title: "x", subtitle: "x" }), /invalid/);
   assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", thumbnail: "javascript:alert(1)" }), /invalid/);

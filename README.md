@@ -39,7 +39,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Follow an album or playlist and Muzik re-checks it on a schedule, downloading whatever was added since
 - Serial download queue with live progress, speed, and time remaining, plus cancel and retry, persisted to disk and recovered after a restart
 - Browse what has been downloaded, re-queue a track, or delete files once deleting is enabled
-- Pick the audio format: m4a, opus, flac, or mp3
+- Pick m4a, opus, mp3, legacy transcoded FLAC, or authorized Qobuz lossless with native YouTube fallback
 - One broad genre assigned per download from MusicBrainz tags, with album artist and album year normalized from the files themselves
 - Optional synced lyrics written next to each track as `.lrc`
 - Refuses to start a download when the disk is nearly full, instead of failing halfway through
@@ -117,7 +117,12 @@ another hostname of yours has to reach the API.
 | `MUZIK_NAVIDROME_CONTAINER` | unset | Fallback container to run `navidrome scan` in after a download |
 | `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
 | `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
-| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `flac`, or `mp3` |
+| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `lossless`, `flac`, or `mp3` |
+| `MUZIK_QOBUZ_APP_ID` | unset | Qobuz-issued application ID used only by the server |
+| `MUZIK_QOBUZ_APP_SECRET` | unset | Qobuz-issued application secret used to sign file URL requests |
+| `MUZIK_QOBUZ_USER_AUTH_TOKEN` | unset | User token for an entitled Qobuz account |
+| `MUZIK_QOBUZ_QUALITY` | `27` | Preferred Qobuz FLAC tier: `27`, `7`, or `6`. Lower lossless tiers are tried in that order |
+| `MUZIK_QOBUZ_CDN_HOSTS` | unset | Required comma-separated HTTPS hostname allowlist for signed Qobuz audio URLs |
 | `MUZIK_OUTPUT_TEMPLATE` | `Artist/Album/NN - Title [id].ext` | yt-dlp output template for downloaded files |
 | `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
 | `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
@@ -132,8 +137,8 @@ OpenSubsonic `startScan` endpoint. If API credentials are unset, it uses
 Navidrome credentials can also be entered on the settings page instead of set here. Those
 are written to `settings.json` in the data directory in plain text, with the file mode set
 to `0600`, because Muzik has no accounts and so no user key to encrypt them with. The
-API key and the password never come back out to the browser — the settings page is only
-told whether each is configured — but anyone who can read the data directory can read them.
+API key and the password never come back out to the browser. The settings page is only
+told whether each is configured, but anyone who can read the data directory can read them.
 Prefer the environment variables if that matters to you; they take precedence and are
 never written to disk. Note that the Subsonic password scheme hashes the password with a
 per-request salt, so Muzik has to keep the password itself and not a hash of it.
@@ -230,12 +235,34 @@ album, and duration, and a matching `.lrc` is written next to the audio file. Th
 those track names to a third-party service, which is why it is off by default. Failures
 are ignored: a download does not become broken because a lyrics server was unreachable.
 
+## Authorized Qobuz lossless mode
+
+`lossless` is separate from `flac`. The old `flac` option remains compatible with existing
+queues, but it transcodes lossy YouTube audio and is labeled accordingly. With `lossless`,
+Muzik searches Qobuz using explicit title, artist, album, duration, version, and optional
+track number metadata. A strict match is downloaded as its native FLAC. Missing matches,
+unavailable quality tiers, entitlement errors, timeouts, and invalid payloads fall back to
+YouTube's native AAC or Opus audio without FLAC transcoding.
+
+All five Qobuz variables above are server-side configuration. Muzik does not support
+password login, shared accounts, web-player secret extraction, or embedded credentials.
+Only use credentials Qobuz issued to you, with an entitled user account and a written
+agreement that permits permanent downloads for your use. Do not share application
+credentials. If any required setting is absent, lossless resolution stays disabled and
+downloads continue through YouTube fallback.
+
+Albums and followed albums use the same track-by-track flow and may contain both Qobuz
+FLAC and YouTube AAC/Opus files. Playlists and external links continue through yt-dlp.
+Queue cards report actual source counts, so a fallback is never labeled lossless.
+
 ## How a download works
 
 1. The queue accepts one job at a time and writes every state change to `jobs.json`.
-2. yt-dlp extracts audio to m4a, embeds metadata and cover art, and writes to
-   `Artist/Album/NN - Title [id].m4a`.
-3. Finished files are re-read with mutagen. Album artist and year come from whatever the
+2. Normal jobs run through yt-dlp. Lossless song and album jobs first resolve a strict
+   Qobuz match, validate every signed URL and redirect against the configured CDN hosts,
+   verify the FLAC signature, and place the tagged file atomically. Unmatched tracks use
+   native YouTube AAC or Opus instead.
+3. Finished files are re-read with ffprobe and ffmpeg. Album artist and year come from whatever the
    tracks agree on, and the genre comes from the artist's MusicBrainz tags, cached per
    artist and rate limited to one request per second. Unknown artists get `Other`.
 4. Lyrics are fetched when enabled, and if a Navidrome container is configured, a full
@@ -255,8 +282,9 @@ its own health check.
 
 ## Notes
 
-Muzik talks to public, anonymous YouTube Music. There is no login, no cookie jar, and no
-account of yours involved. Use it for content you are allowed to save.
+Normal downloads talk to public, anonymous YouTube Music. There is no YouTube login or
+cookie jar. Optional Qobuz lossless mode uses only the credentials supplied in the server
+environment. Use every source only for content you are allowed to save.
 
 ## License
 

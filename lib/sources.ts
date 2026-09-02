@@ -19,3 +19,32 @@ export function externalUrl(value: string): string | null {
     return null;
   }
 }
+
+/**
+ * Hosts Qobuz is allowed to return for a signed stream. That URL is chosen remotely and
+ * downloaded by the server, so an empty allowlist disables Qobuz resolution by default.
+ */
+export function qobuzCdnHosts() {
+  return (process.env.MUZIK_QOBUZ_CDN_HOSTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => (
+      entry.length > 0
+      && entry.length <= 253
+      && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(entry)
+      && !entry.includes("..")
+    ));
+}
+
+export function qobuzStreamUrl(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  const hostname = url.hostname.toLowerCase();
+  const allowed = qobuzCdnHosts().some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  return allowed ? url.toString() : null;
+}

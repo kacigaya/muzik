@@ -35,7 +35,8 @@ function moveRadioFocus(event: React.KeyboardEvent<HTMLDivElement>) {
 const FORMAT_NOTE: Record<AudioFormat, string> = {
   m4a: "Kept as downloaded, no re-encoding",
   opus: "Smallest files at the same quality",
-  flac: "Lossless, from a lossy source",
+  lossless: "Qobuz FLAC when authorized; otherwise native AAC or Opus",
+  flac: "Transcoded from lossy YouTube audio; not lossless",
   mp3: "Widest player support",
 };
 
@@ -128,7 +129,7 @@ export function SettingsPanel({
         </p>
         <div
           aria-labelledby="format-title"
-          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-5"
           onKeyDown={moveRadioFocus}
           role="radiogroup"
         >
