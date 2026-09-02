@@ -89,7 +89,11 @@ export async function syncDue(at = Date.now()) {
         url: null,
         title: subscription.title,
         subtitle: subscription.subtitle,
+        artist: null,
+        album: subscription.kind === "album" ? subscription.title : null,
         thumbnail: subscription.thumbnail,
+        durationSeconds: null,
+        trackNumber: null,
         format: subscription.format,
       });
       subscription.lastJobId = job.id;

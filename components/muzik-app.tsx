@@ -112,9 +112,26 @@ function NavidromeCheck({ job, size, baseUrl, className }: { job: DownloadJob; s
 
 function statusLabel(job: DownloadJob) {
   if (job.status === "completed_with_warnings") {
-    return `Completed · ${job.warningCount} skipped`;
+    return `Completed · ${job.warningCount} warning${job.warningCount === 1 ? "" : "s"}`;
   }
   return job.status.replaceAll("_", " ");
+}
+
+function sourceCodec(job: DownloadJob) {
+  if (job.format === "flac") return "Transcoded FLAC · lossy source";
+  if (job.format !== "lossless") return null;
+  if (job.url) {
+    return job.fallbackItems ? `${job.fallbackItems} source-native audio` : "Source-native audio · Qobuz matching unavailable";
+  }
+  if (job.kind === "playlist") {
+    return job.fallbackItems ? `${job.fallbackItems} YouTube AAC/Opus` : "YouTube AAC/Opus · Qobuz matching unavailable";
+  }
+  const parts = [
+    job.qobuzItems ? `${job.qobuzItems} Qobuz FLAC` : null,
+    job.fallbackItems ? `${job.fallbackItems} YouTube AAC/Opus` : null,
+    job.skippedItems ? `${job.skippedItems} skipped` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Qobuz FLAC first · YouTube AAC/Opus fallback";
 }
 
 function isActive(job: DownloadJob) {
@@ -284,7 +301,11 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
         url: item.url ?? null,
         title: item.title,
         subtitle: item.subtitle,
+        artist: item.artist,
+        album: item.album,
         thumbnail: item.thumbnail,
+        durationSeconds: item.durationSeconds,
+        trackNumber: item.trackNumber,
         format,
       }),
     });
@@ -690,6 +711,9 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
           </section>
 
           <aside aria-labelledby="queue-title" className="min-w-0 border-t pt-8 lg:border-t-0 lg:border-l lg:ps-8 lg:pt-0">
+            <p className="sr-only" role="status" aria-live="polite">
+              {runningJob ? `${runningJob.title}: ${statusLabel(runningJob)}. ${sourceCodec(runningJob) ?? "Downloading"}.` : "No download is running."}
+            </p>
             <div className="mb-4 flex min-h-8 items-center justify-between gap-4">
               <h2 id="queue-title" className="scroll-mt-24 text-lg font-semibold">Download queue</h2>
               <div className="flex items-center gap-1.5">
@@ -726,6 +750,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                     <div className="flex min-w-0 flex-1 flex-col">
                       <p className="truncate text-sm font-medium">{job.title}</p>
                       <p className="truncate text-xs text-muted-foreground">{job.subtitle}</p>
+                      {sourceCodec(job) && <p className="truncate font-mono text-[10px] text-muted-foreground">{sourceCodec(job)}</p>}
                     </div>
                     <NavidromeCheck job={job} size="icon-sm" baseUrl={navidromeUrl} />
                   </Card>
@@ -748,6 +773,7 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <p className="truncate text-sm font-medium">{job.title}</p>
                         <p className="truncate text-xs text-muted-foreground">{job.subtitle}</p>
+                        {sourceCodec(job) && <p className="truncate font-mono text-[10px] text-muted-foreground">{sourceCodec(job)}</p>}
                       </div>
                     </div>
                     {(!isCompleted(job) || job.status === "completed_with_warnings" || job.itemCount) && (

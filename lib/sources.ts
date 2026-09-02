@@ -21,19 +21,22 @@ export function externalUrl(value: string): string | null {
 }
 
 /**
- * Hosts the lossless provider is allowed to hand a stream back from. That URL is chosen
- * by a remote server and then downloaded, so it is confined the same way link sources
- * are: without an allowlist the provider could point the queue at any address the server
- * can reach. Unset means no host is allowed, which keeps the provider off by default.
+ * Hosts Qobuz is allowed to return for a signed stream. That URL is chosen remotely and
+ * downloaded by the server, so an empty allowlist disables Qobuz resolution by default.
  */
-export function losslessCdnHosts() {
-  return (process.env.MUZIK_LOSSLESS_CDN_HOSTS ?? "")
+export function qobuzCdnHosts() {
+  return (process.env.MUZIK_QOBUZ_CDN_HOSTS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
+    .filter((entry) => (
+      entry.length > 0
+      && entry.length <= 253
+      && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(entry)
+      && !entry.includes("..")
+    ));
 }
 
-export function losslessStreamUrl(value: string): string | null {
+export function qobuzStreamUrl(value: string): string | null {
   let url: URL;
   try {
     url = new URL(value);
@@ -42,6 +45,6 @@ export function losslessStreamUrl(value: string): string | null {
   }
   if (url.protocol !== "https:" || url.username || url.password) return null;
   const hostname = url.hostname.toLowerCase();
-  const allowed = losslessCdnHosts().some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  const allowed = qobuzCdnHosts().some((host) => hostname === host || hostname.endsWith(`.${host}`));
   return allowed ? url.toString() : null;
 }

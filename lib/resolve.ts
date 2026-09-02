@@ -56,17 +56,25 @@ export async function resolveExternal(url: string): Promise<SearchItem[]> {
     url: canonical,
     title: data.title ?? "Unknown title",
     subtitle: collection ? artist : data.album ? `${artist} · ${data.album}` : artist,
+    artist,
+    album: collection ? null : data.album ?? null,
     thumbnail: httpsThumbnail(data.thumbnail),
     durationSeconds: collection ? null : Math.round(data.duration ?? 0) || null,
+    trackNumber: null,
     itemCount: collection ? data.entries?.length ?? null : null,
   }];
 }
 
-async function resolveOne(kind: SearchKind, sourceId: string): Promise<SearchItem> {
+export async function resolveSourceItem(
+  kind: SearchKind,
+  sourceId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<SearchItem> {
   const python = process.env.MUZIK_PYTHON ?? `${process.cwd()}/.venv/bin/python`;
   const script = `${process.cwd()}/scripts/search_music.py`;
   const { stdout } = await exec(python, [script, "resolve", kind, sourceId], {
     timeout: 20_000,
+    signal: options.signal,
     maxBuffer: 1024 * 1024,
   });
   return JSON.parse(stdout) as SearchItem;
@@ -74,8 +82,8 @@ async function resolveOne(kind: SearchKind, sourceId: string): Promise<SearchIte
 
 export async function resolveLink(parsed: ParsedLink): Promise<SearchItem[]> {
   const targets: Array<Promise<SearchItem>> = [];
-  if (parsed.videoId) targets.push(resolveOne("song", parsed.videoId));
-  if (parsed.listId && parsed.listKind) targets.push(resolveOne(parsed.listKind, parsed.listId));
+  if (parsed.videoId) targets.push(resolveSourceItem("song", parsed.videoId));
+  if (parsed.listId && parsed.listKind) targets.push(resolveSourceItem(parsed.listKind, parsed.listId));
   const settled = await Promise.allSettled(targets);
   const items = settled.filter((entry) => entry.status === "fulfilled").map((entry) => entry.value);
   if (!items.length) {

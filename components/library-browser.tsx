@@ -75,7 +75,11 @@ export function LibraryBrowser() {
         // The queue shows this, so it gets the title rather than the file name yt-dlp wrote.
         title: trackTitleFromName(entry.name),
         subtitle: parentOf(entry.path) || "Library",
+        artist: null,
+        album: null,
         thumbnail: null,
+        durationSeconds: null,
+        trackNumber: null,
       }),
     });
     const data = await response.json();

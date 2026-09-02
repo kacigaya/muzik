@@ -31,8 +31,11 @@ def normalize_song(item: dict[str, Any]) -> dict[str, Any] | None:
         "sourceId": video_id,
         "title": item.get("title") or "Unknown title",
         "subtitle": f"{artist} · {album}" if album else artist,
+        "artist": artist,
+        "album": album,
         "thumbnail": thumbnail(item),
         "durationSeconds": item.get("duration_seconds"),
+        "trackNumber": item.get("trackNumber"),
         "itemCount": None,
     }
 
@@ -48,8 +51,11 @@ def normalize_album(item: dict[str, Any]) -> dict[str, Any] | None:
         "sourceId": playlist_id,
         "title": item.get("title") or "Unknown album",
         "subtitle": f"{artist} · {year}" if year else artist,
+        "artist": artist,
+        "album": item.get("title") or "Unknown album",
         "thumbnail": thumbnail(item),
         "durationSeconds": None,
+        "trackNumber": None,
         "itemCount": None,
     }
 
@@ -68,8 +74,11 @@ def normalize_playlist(item: dict[str, Any]) -> dict[str, Any] | None:
         "sourceId": playlist_id,
         "title": item.get("title") or "Unknown playlist",
         "subtitle": artist_text(item),
+        "artist": artist_text(item),
+        "album": None,
         "thumbnail": thumbnail(item),
         "durationSeconds": None,
+        "trackNumber": None,
         "itemCount": item_count,
     }
 
@@ -85,8 +94,11 @@ def normalize_resolved_song(data: dict[str, Any]) -> dict[str, Any] | None:
         "sourceId": details["videoId"],
         "title": details.get("title") or "Unknown title",
         "subtitle": details.get("author") or "Unknown artist",
+        "artist": details.get("author") or "Unknown artist",
+        "album": None,
         "thumbnail": thumbnail(details.get("thumbnail") or {}),
         "durationSeconds": int(length) if str(length).isdigit() else None,
+        "trackNumber": None,
         "itemCount": None,
     }
 
@@ -99,8 +111,11 @@ def normalize_resolved_album(playlist_id: str, data: dict[str, Any]) -> dict[str
         "sourceId": playlist_id,
         "title": data.get("title") or "Unknown album",
         "subtitle": f"{artist} · {year}" if year else artist,
+        "artist": artist,
+        "album": data.get("title") or "Unknown album",
         "thumbnail": thumbnail(data),
         "durationSeconds": None,
+        "trackNumber": None,
         "itemCount": data.get("trackCount"),
     }
 
@@ -115,8 +130,11 @@ def normalize_resolved_playlist(kind: str, playlist_id: str, data: dict[str, Any
         "sourceId": playlist_id,
         "title": data.get("title") or "Unknown playlist",
         "subtitle": author or "Unknown artist",
+        "artist": author or "Unknown artist",
+        "album": None,
         "thumbnail": thumbnail(data),
         "durationSeconds": None,
+        "trackNumber": None,
         "itemCount": int(count) if str(count).isdigit() else None,
     }
 
@@ -133,8 +151,11 @@ def normalize_track(item: dict[str, Any], index: int, fallback_album: str | None
         "sourceId": video_id,
         "title": item.get("title") or f"Track {index}",
         "subtitle": f"{artist} \u00b7 {album}" if album else artist,
+        "artist": artist,
+        "album": album,
         "thumbnail": thumbnail(item),
         "durationSeconds": duration if isinstance(duration, int) else None,
+        "trackNumber": item.get("trackNumber") if isinstance(item.get("trackNumber"), int) else None,
         "itemCount": None,
     }
 

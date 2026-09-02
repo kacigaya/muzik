@@ -1,6 +1,6 @@
 export type SearchKind = "song" | "album" | "playlist";
 
-export const AUDIO_FORMATS = ["m4a", "opus", "flac", "mp3"] as const;
+export const AUDIO_FORMATS = ["m4a", "opus", "lossless", "flac", "mp3"] as const;
 export type AudioFormat = (typeof AUDIO_FORMATS)[number];
 
 export type SearchItem = {
@@ -8,8 +8,11 @@ export type SearchItem = {
   sourceId: string;
   title: string;
   subtitle: string;
+  artist: string | null;
+  album: string | null;
   thumbnail: string | null;
   durationSeconds: number | null;
+  trackNumber: number | null;
   itemCount: number | null;
   /** Set for sources outside YouTube Music, where the link itself is the identifier. */
   url?: string | null;
@@ -38,7 +41,11 @@ export type DownloadJob = {
   url: string | null;
   title: string;
   subtitle: string;
+  artist: string | null;
+  album: string | null;
   thumbnail: string | null;
+  durationSeconds: number | null;
+  trackNumber: number | null;
   format: AudioFormat;
   status: JobStatus;
   progress: number;
@@ -47,6 +54,9 @@ export type DownloadJob = {
   itemIndex: number | null;
   itemCount: number | null;
   downloadedItems: number;
+  qobuzItems: number;
+  fallbackItems: number;
+  skippedItems: number;
   warningCount: number;
   error: string | null;
   metadataWarning: string | null;
@@ -57,7 +67,17 @@ export type DownloadJob = {
 
 export type CreateJobRequest = Pick<
   DownloadJob,
-  "kind" | "sourceId" | "url" | "title" | "subtitle" | "thumbnail" | "format"
+  | "kind"
+  | "sourceId"
+  | "url"
+  | "title"
+  | "subtitle"
+  | "artist"
+  | "album"
+  | "thumbnail"
+  | "durationSeconds"
+  | "trackNumber"
+  | "format"
 >;
 
 export type Subscription = {
