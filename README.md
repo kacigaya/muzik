@@ -252,7 +252,9 @@ credentials. If any required setting is absent, lossless resolution stays disabl
 downloads continue through YouTube fallback.
 
 Albums and followed albums use the same track-by-track flow and may contain both Qobuz
-FLAC and YouTube AAC/Opus files. Playlists and external links continue through yt-dlp.
+FLAC and YouTube AAC/Opus files. When the album's track list cannot be read at all, the
+job hands itself back to yt-dlp, which downloads the playlist on its own, so one search
+outage does not fail the album. Playlists and external links always take that path.
 Queue cards report actual source counts, so a fallback is never labeled lossless.
 
 ## How a download works
@@ -260,11 +262,14 @@ Queue cards report actual source counts, so a fallback is never labeled lossless
 1. The queue accepts one job at a time and writes every state change to `jobs.json`.
 2. Normal jobs run through yt-dlp. Lossless song and album jobs first resolve a strict
    Qobuz match, validate every signed URL and redirect against the configured CDN hosts,
-   verify the FLAC signature, and place the tagged file atomically. Unmatched tracks use
-   native YouTube AAC or Opus instead.
-3. Finished files are re-read with ffprobe and ffmpeg. Album artist and year come from whatever the
-   tracks agree on, and the genre comes from the artist's MusicBrainz tags, cached per
-   artist and rate limited to one request per second. Unknown artists get `Other`.
+   verify the FLAC signature, and place the tagged file atomically. Track ids coming back
+   from an album listing are checked before they name a file, and a track carrying an
+   unusable id is skipped and counted as a warning. Unmatched tracks use native YouTube
+   AAC or Opus instead.
+3. Finished files are re-read with ffprobe and ffmpeg. Album artist and year come from
+   whatever the tracks agree on, and the genre comes from the artist's MusicBrainz tags,
+   cached per artist and rate limited to one request per second. Unknown artists get
+   `Other`.
 4. Lyrics are fetched when enabled, and if a Navidrome container is configured, a full
    scan runs.
 
