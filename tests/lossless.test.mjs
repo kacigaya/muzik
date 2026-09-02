@@ -196,3 +196,28 @@ test("builds safe lossless paths that retain the YouTube source ID", () => {
   }, "abcdefghijk");
   assert.equal(path, "Artist Name/Album Name/02 - Song Name [abcdefghijk].flac");
 });
+
+test("keeps a hostile source ID from escaping the library path", () => {
+  const stream = {
+    url: "https://cdn.qobuz.test/file",
+    formatId: 6,
+    bitDepth: 16,
+    samplingRate: 44.1,
+    trackId: "123",
+    artist: "Artist",
+    albumArtist: "Artist",
+    album: "Album",
+    title: "Song",
+    trackNumber: 2,
+    discNumber: 1,
+    durationSeconds: 180,
+    releaseDate: null,
+    copyright: null,
+    artworkUrl: null,
+  };
+  // Separators are gone, so the id stays one path component however ugly it reads.
+  assert.equal(losslessRelativePath(stream, "../../etc/passwd"), "Artist/Album/02 - Song [.. etc passwd].flac");
+  assert.equal(losslessRelativePath(stream, ".."), "Artist/Album/02 - Song [unknown].flac");
+  assert.equal(losslessRelativePath(stream, ""), "Artist/Album/02 - Song [unknown].flac");
+  assert.equal(losslessRelativePath(stream, "a/../../b").split("/").length, 3);
+});

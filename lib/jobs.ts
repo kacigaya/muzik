@@ -13,7 +13,7 @@ import { startNavidromeScan } from "./navidrome.ts";
 import { externalUrl } from "./sources.ts";
 import { resolveSourceItem } from "./resolve.ts";
 import { listTracks } from "./tracks.ts";
-import { defaultFormat } from "./validation.ts";
+import { defaultFormat, VIDEO_ID } from "./validation.ts";
 import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJob, type SearchItem } from "./types.ts";
 
 const exec = promisify(execFile);
@@ -564,7 +564,14 @@ export class JobStore {
   }
 
   private async losslessTracks(job: DownloadJob, signal: AbortSignal) {
-    if (job.kind === "album") return listTracks("album", job.sourceId, { signal });
+    if (job.kind === "album") {
+      // These ids come back from YouTube and then name scratch files and library paths,
+      // so they are confined the same way a job's own source id already is.
+      const listed = await listTracks("album", job.sourceId, { signal });
+      const tracks = listed.filter((track) => VIDEO_ID.test(track.sourceId));
+      job.warningCount += listed.length - tracks.length;
+      return tracks;
+    }
     let track: SearchItem = {
       kind: "song",
       sourceId: job.sourceId,
@@ -597,13 +604,22 @@ export class JobStore {
     return [track];
   }
 
+  /** Returns false when the job was left untouched and yt-dlp should handle it instead. */
   private async downloadLossless(job: DownloadJob, musicRoot: string, signal: AbortSignal) {
-    const tracks = await this.losslessTracks(job, signal);
+    let tracks: SearchItem[];
+    try {
+      tracks = await this.losslessTracks(job, signal);
+    } catch (cause) {
+      // Listing an album can fail on its own, and yt-dlp still downloads the playlist,
+      // so hand the job back rather than failing it before anything was attempted.
+      if (signal.aborted) throw cause;
+      return false;
+    }
     const files = new Set<string>();
     const youtubeErrors: string[] = [];
     job.itemCount = tracks.length > 1 ? tracks.length : null;
     for (const [offset, track] of tracks.entries()) {
-      if (this.isCancelled(job, signal)) return;
+      if (this.isCancelled(job, signal)) return true;
       const index = offset + 1;
       job.itemIndex = tracks.length > 1 ? index : null;
       if (await this.isArchived(track.sourceId)) {
@@ -617,7 +633,7 @@ export class JobStore {
       try {
         qobuz = await this.qobuzTrack(job, track, musicRoot, index, tracks.length, signal);
       } catch {
-        if (signal.aborted) return;
+        if (signal.aborted) return true;
         job.warningCount += 1;
       }
       if (qobuz) {
@@ -634,7 +650,7 @@ export class JobStore {
       await this.persist();
     }
 
-    if (this.isCancelled(job, signal)) return;
+    if (this.isCancelled(job, signal)) return true;
     job.progress = 100;
     job.speed = null;
     job.etaSeconds = null;
@@ -643,23 +659,23 @@ export class JobStore {
       if (job.kind === "song" && isRetryableYoutubeError(youtubeErrors)) {
         this.scheduleTransientRetry(job);
         await this.persist();
-        return;
+        return true;
       }
       job.status = "failed";
       job.error = safeError(youtubeErrors);
       await this.persist();
-      return;
+      return true;
     }
     if (!job.downloadedItems) {
       job.status = job.warningCount ? "completed_with_warnings" : "completed";
       await this.persist();
-      return;
+      return true;
     }
 
     const organized = await organizeFiles([...files], musicRoot, this.dataDir);
-    if (this.isCancelled(job, signal)) return;
+    if (this.isCancelled(job, signal)) return true;
     await fetchLyrics([...files]);
-    if (this.isCancelled(job, signal)) return;
+    if (this.isCancelled(job, signal)) return true;
     if (organized.warnings.length) {
       job.metadataWarning = `Downloaded, but metadata organization had ${organized.warnings.length} warning(s).`;
       job.warningCount += organized.warnings.length;
@@ -667,6 +683,7 @@ export class JobStore {
     job.status = job.warningCount ? "completed_with_warnings" : "completed";
     await this.persist();
     if (job.downloadedItems > 0) this.scheduleNavidromeScan(job);
+    return true;
   }
 
   private scheduleNavidromeScan(job: DownloadJob) {
@@ -758,8 +775,9 @@ export class JobStore {
     if (job.format === "lossless" && !job.url && (job.kind === "song" || job.kind === "album")) {
       const controller = new AbortController();
       this.activeAbortController = controller;
+      let handled = true;
       try {
-        await this.downloadLossless(job, musicRoot, controller.signal);
+        handled = await this.downloadLossless(job, musicRoot, controller.signal);
       } catch (cause) {
         if (this.jobs.find((candidate) => candidate.id === job.id)?.status !== "cancelled") {
           job.status = "failed";
@@ -769,11 +787,13 @@ export class JobStore {
         }
       } finally {
         this.activeAbortController = null;
+      }
+      if (handled) {
         this.activeProcess = null;
         this.activeJobId = null;
         await this.discardScratch(job.id);
+        return;
       }
-      return;
     }
     const errors: string[] = [];
     const downloadedFiles = new Set<string>();

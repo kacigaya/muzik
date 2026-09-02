@@ -206,3 +206,73 @@ esac
   assert.equal(retried.fallbackItems, 1);
   assert.equal(retried.downloadedItems, 1);
 });
+
+test("falls back to yt-dlp when an album's track list cannot be read", async (t) => {
+  const musicRoot = await mkdtemp(join(tmpdir(), "muzik-listfail-music-"));
+  const dataDir = await mkdtemp(join(tmpdir(), "muzik-listfail-data-"));
+  const scratchRoot = await mkdtemp(join(tmpdir(), "muzik-listfail-tmp-"));
+  const binDir = await mkdtemp(join(tmpdir(), "muzik-listfail-bin-"));
+  const previousPath = process.env.PATH;
+
+  // Listing the album fails the way an ytmusicapi outage does.
+  const python = join(binDir, "python");
+  await executable(python, `#!/bin/sh
+echo "ytmusicapi is unreachable" >&2
+exit 1
+`);
+  const ytDlp = join(binDir, "yt-dlp");
+  await executable(ytDlp, `#!/bin/sh
+music=""
+for value in "$@"; do
+  case "$value" in home:*) music="\${value#home:}" ;; esac
+done
+folder="$music/Artist/Album"
+mkdir -p "$folder"
+file="$folder/01 - Whole Album [zzzzzzzzzzz].m4a"
+printf 'native-aac' > "$file"
+printf 'muzik-file:%s\n' "$file"
+`);
+  await executable(join(binDir, "ffprobe"), `#!/bin/sh
+printf '%s\n' '{"format":{"tags":{"genre":"Other"}}}'
+`);
+
+  Object.assign(process.env, {
+    PATH: `${binDir}:${previousPath}`,
+    MUZIK_MUSIC_DIR: musicRoot,
+    MUZIK_DATA_DIR: dataDir,
+    MUZIK_TEMP_DIR: scratchRoot,
+    MUZIK_YTDLP: ytDlp,
+    MUZIK_PYTHON: python,
+    MUZIK_MIN_FREE_MB: "0",
+  });
+  for (const name of [
+    "MUZIK_LYRICS", "MUZIK_VPN_CONTAINER", "MUZIK_NAVIDROME_CONTAINER", "NAVIDROME_URL",
+    "MUZIK_QOBUZ_APP_ID", "MUZIK_QOBUZ_APP_SECRET", "MUZIK_QOBUZ_USER_AUTH_TOKEN", "MUZIK_QOBUZ_CDN_HOSTS",
+  ]) delete process.env[name];
+
+  t.after(() => {
+    process.env.PATH = previousPath;
+    ENV_NAMES.forEach((name) => delete process.env[name]);
+  });
+
+  const store = new JobStore();
+  const { job } = await store.create({
+    kind: "album",
+    sourceId: "OLAK5uy_unreadable",
+    url: null,
+    title: "Album",
+    subtitle: "Artist",
+    artist: "Artist",
+    album: "Album",
+    thumbnail: null,
+    durationSeconds: null,
+    trackNumber: null,
+    format: "lossless",
+  });
+  const finished = await waitFor(store, job.id, ["completed", "completed_with_warnings", "failed"]);
+  assert.notEqual(finished.status, "failed", finished.error);
+  assert.equal(finished.downloadedItems, 1);
+  assert.equal(finished.fallbackItems, 1);
+  assert.equal(finished.qobuzItems, 0);
+  assert.equal((await readFile(join(musicRoot, "Artist/Album/01 - Whole Album [zzzzzzzzzzz].m4a"), "utf8")), "native-aac");
+});
