@@ -17,6 +17,10 @@
   <a href="https://github.com/kacigaya/muzik/blob/main/LICENSE"><img alt="MIT License" src="https://shieldcn.dev/github/license/kacigaya/muzik.svg?variant=secondary"></a>
 </p>
 
+<p align="center">
+  <a href="https://kacigaya.github.io/muzik/"><strong>Documentation</strong></a>
+</p>
+
 Muzik writes into a directory you choose, in an `Artist/Album/Track` layout that Navidrome,
 Jellyfin, Plex, or a plain file browser can read. It has no accounts and no database.
 
@@ -32,32 +36,20 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 
 ## Features
 
-- Asks where to store music on first run, then remembers it
-- Search songs, albums, and playlists from YouTube Music, with live suggestions while typing
-- Paste a link instead of searching: YouTube, YouTube Music, SoundCloud, or Bandcamp. A `watch?v=…&list=…` link offers both the single song and the full collection
-- Expand an album or playlist to see its tracks and queue only the ones you want
-- Follow an album or playlist and Muzik re-checks it on a schedule, downloading whatever was added since
-- Serial download queue with live progress, speed, and time remaining, plus cancel and retry, persisted to disk and recovered after a restart
-- Browse what has been downloaded, re-queue a track, or delete files once deleting is enabled
-- Pick m4a, opus, mp3, legacy transcoded FLAC, or authorized Qobuz lossless with native YouTube fallback
-- One broad genre assigned per download from MusicBrainz tags, with album artist and album year normalized from the files themselves
+- Search songs, albums, and playlists from YouTube Music, or paste a YouTube, YouTube Music, SoundCloud, or Bandcamp link
+- Expand an album or playlist and queue only the tracks you want
+- Follow a collection and Muzik re-checks it on a schedule, downloading whatever was added since
+- Serial queue with live progress, speed, and time remaining, persisted to disk and recovered after a restart
+- Pick m4a, opus, mp3, transcoded FLAC, or [authorized Qobuz lossless](https://kacigaya.github.io/muzik/docs/guide/qobuz-lossless/) with native YouTube fallback
+- Album artist, album year, and one broad MusicBrainz genre normalized from the files themselves
 - Optional synced lyrics written next to each track as `.lrc`
-- Refuses to start a download when the disk is nearly full, instead of failing halfway through
-- Duplicate protection through a yt-dlp download archive and a queue that refuses to add the same source twice
-- Optional links straight into a Navidrome instance, and an optional scan trigger after each download
+- Optional Navidrome links and a scan trigger after each download
 - Optional routing of all downloads through a VPN container
-- Installable as a PWA, with `/` and `⌘K` shortcuts, light and dark themes, and a queue bar that follows you on mobile
+- Installable as a PWA, with `/` and `⌘K` shortcuts and light and dark themes
 
-## Tech stack
+## Quick start
 
-- Framework: Next.js 16 (App Router)
-- UI: React 19, Tailwind CSS 4, [coss ui](https://coss.com/ui) components on Base UI, Lucide and morphicons
-- Language: TypeScript
-- Downloader: yt-dlp with ffmpeg
-- Metadata: ytmusicapi for YouTube Music, yt-dlp for other sources, mutagen for tag rewriting, MusicBrainz for genre, lrclib.net for lyrics
-- Testing: `node --test` for the TypeScript modules, `unittest` for the Python bridge
-
-## Running with Docker
+With Docker:
 
 ```bash
 docker build -t muzik .
@@ -68,122 +60,35 @@ docker run -d --name muzik \
   muzik
 ```
 
-Or with Compose, after pointing the music volume in `compose.yaml` at your library:
-
-```bash
-docker compose up -d
-```
-
-The image bundles ffmpeg, yt-dlp, and the Python bridges. `/data` holds the queue, the
-download archive, the MusicBrainz cache, and your chosen library path, so keep it on a
-volume if you want any of that to survive a restart.
-
-## First run
-
-Muzik asks for a music folder the first time you open it and writes the answer to
-`settings.json` in the data directory. In Docker the answer is `/music`, which is where
-your library is mounted.
-
-The folder is created if it does not exist, and it has to be an absolute path that the
-Muzik process can write to. Since Muzik has no accounts, the setup screen only accepts a
-folder while none is configured; changing it later means editing `settings.json` or
-setting `MUZIK_MUSIC_DIR`. That variable also skips the screen entirely, which is what you
-want for an automated deployment.
-
-Muzik has no authentication. Bind it to a private interface or put it behind whatever
-front end you already use for the rest of your services.
-
-Since same-origin is the only boundary left, the API refuses a state-changing request
-that a browser reports as coming from somewhere else. That stops a page you happen to be
-visiting from queueing downloads or deleting tracks on your behalf, but it is not a
-substitute for keeping Muzik off the open internet. Clients that are not browsers, like
-`curl` or the container health check, are unaffected. Set `MUZIK_ALLOWED_ORIGINS` if
-another hostname of yours has to reach the API.
-
-## Configuration
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `MUZIK_MUSIC_DIR` | unset | Pins the library root and skips the first-run screen |
-| `MUZIK_DEFAULT_MUSIC_DIR` | unset | Prefills the first-run screen without pinning anything |
-| `MUZIK_DATA_DIR` | `/srv/muzik/data` | Queue state, chosen library path, download archive, MusicBrainz artist cache |
-| `MUZIK_TEMP_DIR` | `/srv/muzik/tmp` | Per-job scratch space, cleared when the job ends |
-| `MUZIK_PYTHON` | `.venv/bin/python` | Interpreter for the search and resolve bridges |
-| `MUZIK_YTDLP` | `.venv/bin/yt-dlp` | Downloader binary |
-| `NAVIDROME_URL` | unset | Adds links from finished downloads into a Navidrome web UI. Ignored unless it is a plain HTTP or HTTPS address |
-| `MUZIK_NAVIDROME_API_KEY` | unset | OpenSubsonic API key used to request a quick Navidrome scan after a download |
-| `MUZIK_NAVIDROME_USERNAME` | unset | Navidrome username used when no API key is configured |
-| `MUZIK_NAVIDROME_PASSWORD` | unset | Navidrome password used with `MUZIK_NAVIDROME_USERNAME` |
-| `MUZIK_NAVIDROME_CONTAINER` | unset | Fallback container to run `navidrome scan` in after a download |
-| `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
-| `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
-| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `lossless`, `flac`, or `mp3` |
-| `MUZIK_QOBUZ_APP_ID` | unset | Qobuz-issued application ID used only by the server |
-| `MUZIK_QOBUZ_APP_SECRET` | unset | Qobuz-issued application secret used to sign file URL requests |
-| `MUZIK_QOBUZ_USER_AUTH_TOKEN` | unset | User token for an entitled Qobuz account |
-| `MUZIK_QOBUZ_QUALITY` | `27` | Preferred Qobuz FLAC tier: `27`, `7`, or `6`. Lower lossless tiers are tried in that order |
-| `MUZIK_QOBUZ_CDN_HOSTS` | unset | Required comma-separated HTTPS hostname allowlist for signed Qobuz audio URLs |
-| `MUZIK_OUTPUT_TEMPLATE` | `Artist/Album/NN - Title [id].ext` | yt-dlp output template for downloaded files |
-| `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
-| `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
-| `MUZIK_ALLOW_DELETE` | unset | Set to `1` to allow deleting files from the library browser |
-| `MUZIK_ALLOWED_ORIGINS` | unset | Comma-separated origins allowed to make state-changing API requests on top of Muzik's own |
-
-To scan Navidrome after a download, set `NAVIDROME_URL` and either
-`MUZIK_NAVIDROME_API_KEY` or both username and password variables. Muzik calls the
-OpenSubsonic `startScan` endpoint. If API credentials are unset, it uses
-`MUZIK_NAVIDROME_CONTAINER` as a local fallback.
-
-Navidrome credentials can also be entered on the settings page instead of set here. Those
-are written to `settings.json` in the data directory in plain text, with the file mode set
-to `0600`, because Muzik has no accounts and so no user key to encrypt them with. The
-API key and the password never come back out to the browser. The settings page is only
-told whether each is configured, but anyone who can read the data directory can read them.
-Prefer the environment variables if that matters to you; they take precedence and are
-never written to disk. Note that the Subsonic password scheme hashes the password with a
-per-request salt, so Muzik has to keep the password itself and not a hash of it.
-
-The Docker image sets the paths and the Python bindings so `/music` and `/data` work out
-of the box.
-
-`MUZIK_VPN_CONTAINER` and `MUZIK_NAVIDROME_CONTAINER` shell out to a container runtime
-through `sudo -n`, which suits a host install more than a container. In Compose, share the
-VPN container's network instead:
-
-```yaml
-services:
-  muzik:
-    network_mode: "service:gluetun"
-```
-
-Without either variable, yt-dlp uses the network it already has and your library server
-picks new files up on its own next scan.
-
-## Running from source
-
-### Prerequisites
-
-- Node.js 22+
-- Python 3.12+
-- ffmpeg on `PATH`
-
-### Installation
+From source, with Node.js 22+, Python 3.12+, and ffmpeg on `PATH`:
 
 ```bash
 npm install
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-### Development
-
-```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+Muzik asks for a music folder the first time you open it. Set `MUZIK_MUSIC_DIR` to skip
+that screen.
 
-### Validation
+**Muzik has no authentication.** Bind it to a private interface or put it behind whatever
+front end you already use. See [Deploy](https://kacigaya.github.io/muzik/docs/getting-started/deploy/).
+
+## Documentation
+
+Full documentation lives at **<https://kacigaya.github.io/muzik/>**.
+
+- [Install](https://kacigaya.github.io/muzik/docs/getting-started/install/)
+- [Deploy](https://kacigaya.github.io/muzik/docs/getting-started/deploy/)
+- [Downloads](https://kacigaya.github.io/muzik/docs/guide/downloads/)
+- [Audio formats](https://kacigaya.github.io/muzik/docs/guide/audio-formats/)
+- [Qobuz lossless](https://kacigaya.github.io/muzik/docs/guide/qobuz-lossless/)
+- [Configuration](https://kacigaya.github.io/muzik/docs/reference/configuration/)
+- [Security](https://kacigaya.github.io/muzik/docs/reference/security/)
+
+The site source is in [`web/`](web).
+
+## Development
 
 ```bash
 npm test         # node --test plus the Python unittest suite
@@ -193,97 +98,9 @@ npm run build
 ```
 
 GitHub Actions runs all four on every push and pull request, plus `npm audit` and a build
-of the Docker image.
-
-`npm run start` serves the production build on `127.0.0.1:3020`. Set `HOST` and `PORT` to
-change that.
-
-### Project structure
-
-```
-app/            # Next.js App Router entry, layout, manifest, and global styles
-  api/          # search, resolve, tracks, jobs, subscriptions, library, setup, health
-  library/      # Library browser page
-components/     # MuzikApp, onboarding, library browser, and the coss ui primitives
-lib/            # Queue, downloader, metadata, subscriptions, lyrics, library, validation
-scripts/        # ytmusicapi bridges and the library reorganizer
-public/         # Icon and service worker
-tests/          # Node and Python tests
-instrumentation.ts  # Starts the subscription scheduler with the server
-```
-
-## Following a collection
-
-Any album or playlist can be followed from its search result. Muzik re-queues it every
-`intervalHours` (24 by default) and yt-dlp's download archive skips everything already on
-disk, so a sync only pulls what was added since the last run. The scheduler runs in the
-server process and also catches up once at startup, so a machine that was off overnight
-still syncs when it comes back.
-
-## Library browser
-
-`/library` walks the music folder, shows what Muzik wrote, and can queue a track again
-from the video id stored in its file name. Deleting is off unless `MUZIK_ALLOW_DELETE=1`
-is set, because Muzik has no accounts: anyone who can reach the page can use whatever it
-allows. Deleting a track also drops it from the download archive, otherwise yt-dlp would
-skip it forever after.
-
-## Lyrics
-
-With `MUZIK_LYRICS=1`, each finished track is looked up on lrclib.net by artist, title,
-album, and duration, and a matching `.lrc` is written next to the audio file. This sends
-those track names to a third-party service, which is why it is off by default. Failures
-are ignored: a download does not become broken because a lyrics server was unreachable.
-
-## Authorized Qobuz lossless mode
-
-`lossless` is separate from `flac`. The old `flac` option remains compatible with existing
-queues, but it transcodes lossy YouTube audio and is labeled accordingly. With `lossless`,
-Muzik searches Qobuz using explicit title, artist, album, duration, version, and optional
-track number metadata. A strict match is downloaded as its native FLAC. Missing matches,
-unavailable quality tiers, entitlement errors, timeouts, and invalid payloads fall back to
-YouTube's native AAC or Opus audio without FLAC transcoding.
-
-All five Qobuz variables above are server-side configuration. Muzik does not support
-password login, shared accounts, web-player secret extraction, or embedded credentials.
-Only use credentials Qobuz issued to you, with an entitled user account and a written
-agreement that permits permanent downloads for your use. Do not share application
-credentials. If any required setting is absent, lossless resolution stays disabled and
-downloads continue through YouTube fallback.
-
-Albums and followed albums use the same track-by-track flow and may contain both Qobuz
-FLAC and YouTube AAC/Opus files. When the album's track list cannot be read at all, the
-job hands itself back to yt-dlp, which downloads the playlist on its own, so one search
-outage does not fail the album. Playlists and external links always take that path.
-Queue cards report actual source counts, so a fallback is never labeled lossless.
-
-## How a download works
-
-1. The queue accepts one job at a time and writes every state change to `jobs.json`.
-2. Normal jobs run through yt-dlp. Lossless song and album jobs first resolve a strict
-   Qobuz match, validate every signed URL and redirect against the configured CDN hosts,
-   verify the FLAC signature, and place the tagged file atomically. Track ids coming back
-   from an album listing are checked before they name a file, and a track carrying an
-   unusable id is skipped and counted as a warning. Unmatched tracks use native YouTube
-   AAC or Opus instead.
-3. Finished files are re-read with ffprobe and ffmpeg. Album artist and year come from
-   whatever the tracks agree on, and the genre comes from the artist's MusicBrainz tags,
-   cached per artist and rate limited to one request per second. Unknown artists get
-   `Other`.
-4. Lyrics are fetched when enabled, and if a Navidrome container is configured, a full
-   scan runs.
-
-Existing files can be normalized the same way without downloading anything:
-
-```bash
-npm run organize
-```
-
-The queue keeps the last 100 finished jobs and drops the rest. Jobs that were running when
-the process stopped are re-queued at startup. The browser follows progress over
-`GET /api/jobs/stream`, a server-sent event stream, and falls back to polling when a proxy
-buffers it. `GET /api/health` answers for uptime checks, and the Docker image uses it as
-its own health check.
+of the Docker image. See
+[Development](https://kacigaya.github.io/muzik/docs/reference/development/) for the project
+structure.
 
 ## Notes
 

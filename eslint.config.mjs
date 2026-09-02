@@ -5,5 +5,6 @@ import nextTypeScript from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextCoreWebVitals,
   ...nextTypeScript,
-  globalIgnores([".next/**", ".venv/**", "node_modules/**", "next-env.d.ts"]),
+  // web/ is a separate Next.js project with its own config and "@/" alias.
+  globalIgnores([".next/**", ".venv/**", "node_modules/**", "next-env.d.ts", "web/**"]),
 ]);
