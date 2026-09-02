@@ -13,7 +13,7 @@ import { startNavidromeScan } from "./navidrome.ts";
 import { externalUrl } from "./sources.ts";
 import { resolveSourceItem } from "./resolve.ts";
 import { listTracks } from "./tracks.ts";
-import { defaultFormat } from "./validation.ts";
+import { defaultFormat, VIDEO_ID } from "./validation.ts";
 import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJob, type SearchItem } from "./types.ts";
 
 const exec = promisify(execFile);
@@ -564,7 +564,14 @@ export class JobStore {
   }
 
   private async losslessTracks(job: DownloadJob, signal: AbortSignal) {
-    if (job.kind === "album") return listTracks("album", job.sourceId, { signal });
+    if (job.kind === "album") {
+      // These ids come back from YouTube and then name scratch files and library paths,
+      // so they are confined the same way a job's own source id already is.
+      const listed = await listTracks("album", job.sourceId, { signal });
+      const tracks = listed.filter((track) => VIDEO_ID.test(track.sourceId));
+      job.warningCount += listed.length - tracks.length;
+      return tracks;
+    }
     let track: SearchItem = {
       kind: "song",
       sourceId: job.sourceId,

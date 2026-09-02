@@ -490,5 +490,6 @@ export function losslessRelativePath(stream: QobuzStream, sourceId: string) {
   const number = String(stream.trackNumber ?? 0).padStart(2, "0");
   const artist = safeComponent(stream.albumArtist || stream.artist, "Unknown Artist");
   const album = safeComponent(stream.album, "Singles");
-  return `${artist}/${album}/${number} - ${safeComponent(stream.title, "Track")} [${sourceId}].flac`;
+  const id = safeComponent(sourceId, "unknown");
+  return `${artist}/${album}/${number} - ${safeComponent(stream.title, "Track")} [${id}].flac`;
 }
