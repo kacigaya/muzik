@@ -5,7 +5,7 @@ import { LEGAL_UPDATED } from "../updated";
 export const metadata: Metadata = {
   title: "Privacy policy",
   description: "How Muzik handles data, hosting requests, and your privacy.",
-  alternates: { canonical: null },
+  alternates: { canonical: "https://kacigaya.github.io/muzik/privacy/" },
   openGraph: {
     title: "Privacy policy | Muzik",
     description: "How Muzik handles data, hosting requests, and your privacy.",

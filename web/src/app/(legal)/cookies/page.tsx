@@ -5,7 +5,7 @@ import { LEGAL_UPDATED } from "../updated";
 export const metadata: Metadata = {
   title: "Cookies policy",
   description: "How Muzik handles cookies, browser storage, and preferences.",
-  alternates: { canonical: null },
+  alternates: { canonical: "https://kacigaya.github.io/muzik/cookies/" },
   openGraph: {
     title: "Cookies policy | Muzik",
     description: "How Muzik handles cookies, browser storage, and preferences.",
