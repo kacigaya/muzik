@@ -1,6 +1,12 @@
+import { SiteFooter } from "@/components/site-footer";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CodeBlock } from "@/components/code-block";
 import { MuzikMark } from "@/components/muzik-mark";
@@ -9,7 +15,6 @@ import { DEFAULT_DESCRIPTION, SITE_URL } from "@/lib/seo";
 
 const DOCS_URL = "/docs";
 const GITHUB_URL = "https://github.com/kacigaya/muzik";
-const RELEASES_URL = "https://github.com/kacigaya/muzik/releases";
 
 const FEATURES = [
   {
@@ -112,7 +117,11 @@ export default function Home() {
             <Button variant="ghost" size="sm" render={<Link href={DOCS_URL} />}>
               Docs
             </Button>
-            <Button variant="outline" size="sm" render={<a href={GITHUB_URL} />}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<a href={GITHUB_URL} />}
+            >
               GitHub
             </Button>
           </nav>
@@ -128,13 +137,13 @@ export default function Home() {
           Your music, downloaded and organized into files you keep
         </h1>
         <p className="mt-6 max-w-2xl text-pretty text-lg text-muted-foreground">
-          Muzik is a self-hosted web interface for downloading music from YouTube Music.
-          It writes tagged, organized files that Navidrome, Jellyfin, Plex, or a plain file
-          browser can read.
+          Muzik is a self-hosted web interface for downloading music from
+          YouTube Music. It writes tagged, organized files that Navidrome,
+          Jellyfin, Plex, or a plain file browser can read.
         </p>
         <p className="mt-4 max-w-2xl text-pretty text-base text-muted-foreground">
-          One serial queue, live progress, followed albums, synced lyrics, and authorized
-          Qobuz lossless when you supply your own credentials.
+          One serial queue, live progress, followed albums, synced lyrics, and
+          authorized Qobuz lossless when you supply your own credentials.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <Button size="xl" render={<Link href={DOCS_URL} />}>
@@ -159,7 +168,9 @@ export default function Home() {
             <Card key={feature.title}>
               <CardHeader>
                 <CardTitle render={<h3 />}>{feature.title}</CardTitle>
-                <CardDescription render={<p />}>{feature.description}</CardDescription>
+                <CardDescription render={<p />}>
+                  {feature.description}
+                </CardDescription>
               </CardHeader>
             </Card>
           ))}
@@ -173,22 +184,7 @@ export default function Home() {
         <CodeBlock code={COMPOSE} lang="yaml" />
       </section>
 
-      <footer className="mt-auto border-t">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
-          <span>© {new Date().getFullYear()} Muzik</span>
-          <nav aria-label="Footer" className="flex items-center gap-5">
-            <Link href={DOCS_URL} className="hover:text-foreground">
-              Documentation
-            </Link>
-            <a href={GITHUB_URL} className="hover:text-foreground">
-              GitHub
-            </a>
-            <a href={RELEASES_URL} className="hover:text-foreground">
-              Releases
-            </a>
-          </nav>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
