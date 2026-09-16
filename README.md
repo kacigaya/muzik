@@ -108,6 +108,18 @@ Normal downloads talk to public, anonymous YouTube Music. There is no YouTube lo
 cookie jar. Optional Qobuz lossless mode uses only the credentials supplied in the server
 environment. Use every source only for content you are allowed to save.
 
+### Album artwork
+
+After downloads, Muzik creates a square `cover.jpg` when embedded YouTube artwork
+has solid sidebars. Audio files stay unchanged. Existing `cover.*`, `folder.*`,
+and `front.*` artwork takes priority and is preserved. Square images and landscape
+images without solid sidebars are left alone.
+
+Repair existing albums with `node --experimental-strip-types scripts/fix_artwork.mjs`
+(using the configured music folder or `MUZIK_MUSIC_DIR`), then rescan the library in
+Navidrome. Clients may need to refresh their cached album images. This repairs
+server album artwork; it does not replace embedded covers in downloaded files.
+
 ## License
 
 MIT

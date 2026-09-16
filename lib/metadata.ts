@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { chmod, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
+import { createAlbumCover } from "./artwork.ts";
 import { USER_AGENT } from "./user-agent.ts";
 
 const exec = promisify(execFile);
@@ -146,6 +147,13 @@ export async function organizeFiles(paths: string[], musicDir: string, dataDir: 
   for (const folder of folders) {
     try {
       const files = await audioFiles(folder);
+      for (const file of files) {
+        try {
+          if (await createAlbumCover(file)) break;
+        } catch (cause) {
+          result.warnings.push(`${relative(musicDir, file)}: Artwork update failed: ${cause instanceof Error ? cause.message : "Unknown error"}`);
+        }
+      }
       const tagged = await Promise.all(files.map(async (file) => ({ file, tags: await probe(file) })));
       const artist = mode(tagged.map(({ tags }) => tags.artist)) || mode(tagged.map(({ tags }) => tags.album_artist));
       const years = tagged.map(({ tags }) => tags.date?.slice(0, 4)).filter((year) => /^\d{4}$/.test(year)).sort();
