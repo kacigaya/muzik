@@ -23,7 +23,7 @@ jobs:
       NEXT_PUBLIC_BASE_PATH: /muzik
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
