@@ -18,7 +18,7 @@ jobs:
     name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -55,7 +55,7 @@ jobs:
     name: Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The image installs its own ffmpeg, Python, and yt-dlp, so building it is the only
       # thing that checks the documented Docker path still works.
