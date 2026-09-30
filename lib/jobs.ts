@@ -104,7 +104,7 @@ export function isRetryableYoutubeError(lines: string[]) {
 export class JobStore {
   private jobs: DownloadJob[] = [];
   private listeners = new Set<() => void>();
-  private loaded = false;
+  private loading: Promise<void> | null = null;
   private activeProcess: ReturnType<typeof spawn> | null = null;
   private activeAbortController: AbortController | null = null;
   private activeJobId: string | null = null;
@@ -121,8 +121,19 @@ export class JobStore {
   private readonly vpnContainer = process.env.MUZIK_VPN_CONTAINER ?? "";
   private readonly navidromeContainer = process.env.MUZIK_NAVIDROME_CONTAINER ?? "";
 
-  private async load() {
-    if (this.loaded) return;
+  /**
+   * Concurrent first requests share one read. A second read would replace the array the
+   * worker is already mutating and turn its running job back into a queued copy.
+   */
+  private load() {
+    this.loading ??= this.readJobs().catch((cause: unknown) => {
+      this.loading = null;
+      throw cause;
+    });
+    return this.loading;
+  }
+
+  private async readJobs() {
     await mkdir(this.dataDir, { recursive: true });
     await mkdir(this.tempDir, { recursive: true });
     try {
@@ -131,7 +142,6 @@ export class JobStore {
       if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     }
     upgradeJobs(recoverJobs(this.jobs));
-    this.loaded = true;
     await this.persist();
   }
 
@@ -142,11 +152,14 @@ export class JobStore {
     const payload = JSON.stringify(this.jobs, null, 2);
     const target = join(this.dataDir, "jobs.json");
     const temporary = `${target}.tmp`;
-    this.persistChain = this.persistChain.then(async () => {
+    const write = this.persistChain.then(async () => {
       await writeFile(temporary, payload, { mode: 0o600 });
       await rename(temporary, target);
     });
-    await this.persistChain;
+    // The failure belongs to this caller only. Chaining on a rejected write would make
+    // every later write reject too, until the process restarts.
+    this.persistChain = write.catch(() => {});
+    await write;
     for (const listener of this.listeners) listener();
   }
 
@@ -260,7 +273,8 @@ export class JobStore {
     if (this.workerRunning) return;
     this.workerRunning = true;
     try {
-      let job = this.jobs.find((candidate) => candidate.status === "queued");
+      // New jobs are unshifted, so the oldest queued job is the last one: first in, first out.
+      let job = this.jobs.findLast((candidate) => candidate.status === "queued");
       while (job) {
         try {
           await this.download(job);
@@ -274,7 +288,7 @@ export class JobStore {
             try { await this.persist(); } catch { /* the in-memory status already frees the queue */ }
           }
         }
-        job = this.jobs.find((candidate) => candidate.status === "queued");
+        job = this.jobs.findLast((candidate) => candidate.status === "queued");
       }
     } finally {
       this.workerRunning = false;
