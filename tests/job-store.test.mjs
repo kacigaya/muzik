@@ -41,6 +41,13 @@ test("concurrent first requests read the queue from disk once", async (t) => {
   assert.equal(first[0], second[0]);
 });
 
+test("a failed first write is reported once and the queue stays usable", async (t) => {
+  const { store, dataDir } = await storeWith(t, [job("11111111-1111-1111-1111-111111111111", "completed", "2026-01-01T00:00:00.000Z")]);
+  await mkdir(join(dataDir, "jobs.json.tmp"));
+  await assert.rejects(() => store.list(), { code: "EISDIR" });
+  assert.equal((await store.list()).length, 1);
+});
+
 test("a failed write does not block every later write", async (t) => {
   const { store, dataDir } = await storeWith(t, []);
   await store.list();

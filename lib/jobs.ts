@@ -123,14 +123,17 @@ export class JobStore {
 
   /**
    * Concurrent first requests share one read. A second read would replace the array the
-   * worker is already mutating and turn its running job back into a queued copy.
+   * worker is already mutating and turn its running job back into a queued copy. Only the
+   * caller that triggered the read writes the upgraded queue back, so a failed write is
+   * reported once and the queue keeps working in memory, as it does for any other write.
    */
   private load() {
-    this.loading ??= this.readJobs().catch((cause: unknown) => {
+    if (this.loading) return this.loading;
+    this.loading = this.readJobs().catch((cause: unknown) => {
       this.loading = null;
       throw cause;
     });
-    return this.loading;
+    return this.loading.then(() => this.persist());
   }
 
   private async readJobs() {
@@ -142,7 +145,6 @@ export class JobStore {
       if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     }
     upgradeJobs(recoverJobs(this.jobs));
-    await this.persist();
   }
 
   private async persist() {
