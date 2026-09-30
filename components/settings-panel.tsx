@@ -44,13 +44,15 @@ export function SettingsPanel({
   musicDir,
   pinned,
   navidrome: initialNavidrome,
+  defaultFormat,
 }: {
   musicDir: string;
   pinned: boolean;
   navidrome: PublicNavidromeSettings;
+  defaultFormat: AudioFormat;
 }) {
   const router = useRouter();
-  const [format, setFormat] = useState<AudioFormat>(AUDIO_FORMATS[0]);
+  const [format, setFormat] = useState<AudioFormat>(defaultFormat);
   const [navidrome, setNavidrome] = useState(initialNavidrome);
   const [navidromeUrl, setNavidromeUrl] = useState(initialNavidrome.url);
   const [authMode, setAuthMode] = useState(initialNavidrome.authMode);
