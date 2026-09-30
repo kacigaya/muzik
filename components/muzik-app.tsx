@@ -146,7 +146,7 @@ function focusSearch() {
   document.getElementById("music-search")?.focus();
 }
 
-export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
+export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string; defaultFormat: AudioFormat }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [suggesting, setSuggesting] = useState(false);
@@ -155,7 +155,8 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [format, setFormat] = useState<AudioFormat>(AUDIO_FORMATS[0]);
+  // MUZIK_AUDIO_FORMAT applies until this browser picks a format on the settings page.
+  const [format, setFormat] = useState<AudioFormat>(defaultFormat);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Record<string, SearchItem[]>>({});
@@ -421,8 +422,8 @@ export function MuzikApp({ navidromeUrl }: { navidromeUrl: string }) {
 
   const activeJobs = jobs.filter(isActive).length;
   const runningJob = jobs.find((job) => job.status === "running");
-  // The worker takes the newest queued job first, so unfinished work can sit anywhere in the
-  // list; floating it keeps live progress inside the preview.
+  // A retried job keeps its place in the list, so unfinished work can sit anywhere in it;
+  // floating it keeps live progress inside the preview.
   const orderedJobs = [...jobs].sort((left, right) => Number(isActive(right)) - Number(isActive(left)));
   const visibleJobs = showAllJobs ? orderedJobs : orderedJobs.slice(0, QUEUE_PREVIEW);
   const compact = Boolean(results) || loading;

@@ -35,13 +35,15 @@ async function read(): Promise<Subscription[]> {
 let writeChain = Promise.resolve();
 
 async function write(subscriptions: Subscription[]) {
-  writeChain = writeChain.then(async () => {
+  const pending = writeChain.then(async () => {
     await mkdir(dataDir(), { recursive: true });
     const temporary = `${file()}.tmp`;
     await writeFile(temporary, JSON.stringify(subscriptions, null, 2), { mode: 0o600 });
     await rename(temporary, file());
   });
-  await writeChain;
+  // A failed write is reported to its own caller; it must not reject every later write.
+  writeChain = pending.catch(() => {});
+  await pending;
 }
 
 export async function listSubscriptions() {
