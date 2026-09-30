@@ -38,6 +38,10 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check -r requirements.txt
 
+      # Ubuntu 26.04 runner images no longer ship ffmpeg; the artwork tests call it directly.
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - run: npm run lint
 
       - run: npm run typecheck
