@@ -96,11 +96,7 @@ const SOFTWARE_SCHEMA = {
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_SCHEMA) }}
-      />
+    <>
       <header className="sticky top-0 z-20 px-4 pt-4">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border bg-background/70 px-5 py-3 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-2.5">
@@ -123,63 +119,70 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 py-24 text-center">
-        <MuzikMark className="mb-8 size-20" />
-        <Badge variant="secondary" className="mb-6">
-          Self-hosted · yt-dlp · Navidrome · No accounts
-        </Badge>
-        <h1 className="text-balance font-heading text-5xl font-bold tracking-tight sm:text-6xl">
-          Your music, downloaded and organized into files you keep
-        </h1>
-        <p className="mt-6 max-w-2xl text-pretty text-lg text-muted-foreground">
-          Muzik is a self-hosted web interface for downloading music from
-          YouTube Music. It writes tagged, organized files that Navidrome,
-          Jellyfin, Plex, or a plain file browser can read.
-        </p>
-        <p className="mt-4 max-w-2xl text-pretty text-base text-muted-foreground">
-          One serial queue, live progress, followed albums, synced lyrics, and
-          a choice of m4a, opus, mp3, or transcoded FLAC.
-        </p>
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <Button size="xl" render={<Link href={DOCS_URL} />}>
-            Read the docs
-          </Button>
-          <Button size="xl" variant="outline" render={<a href={GITHUB_URL} />}>
-            Star on GitHub
-          </Button>
-        </div>
-      </section>
+      <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_SCHEMA) }}
+        />
 
-      <section className="mx-auto w-full max-w-3xl px-6 pb-24">
-        <CodeBlock code={INSTALL} lang="bash" />
-      </section>
+        <section className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 py-24 text-center">
+          <MuzikMark className="mb-8 size-20" />
+          <Badge variant="secondary" className="mb-6">
+            Self-hosted · yt-dlp · Navidrome · No accounts
+          </Badge>
+          <h1 className="text-balance font-heading text-5xl font-bold tracking-tight sm:text-6xl">
+            Your music, downloaded and organized into files you keep
+          </h1>
+          <p className="mt-6 max-w-2xl text-pretty text-lg text-muted-foreground">
+            Muzik is a self-hosted web interface for downloading music from
+            YouTube Music. It writes tagged, organized files that Navidrome,
+            Jellyfin, Plex, or a plain file browser can read.
+          </p>
+          <p className="mt-4 max-w-2xl text-pretty text-base text-muted-foreground">
+            One serial queue, live progress, followed albums, synced lyrics, and
+            a choice of m4a, opus, mp3, or transcoded FLAC.
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <Button size="xl" render={<Link href={DOCS_URL} />}>
+              Read the docs
+            </Button>
+            <Button size="xl" variant="outline" render={<a href={GITHUB_URL} />}>
+              Star on GitHub
+            </Button>
+          </div>
+        </section>
 
-      <section className="mx-auto w-full max-w-5xl px-6 pb-24">
-        <h2 className="mb-10 text-balance text-center font-heading text-3xl font-bold tracking-tight">
-          Built to hand you files, not a streaming account
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((feature) => (
-            <Card key={feature.title}>
-              <CardHeader>
-                <CardTitle render={<h3 />}>{feature.title}</CardTitle>
-                <CardDescription render={<p />}>
-                  {feature.description}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      </section>
+        <section className="mx-auto w-full max-w-3xl px-6 pb-24">
+          <CodeBlock code={INSTALL} lang="bash" />
+        </section>
 
-      <section className="mx-auto w-full max-w-3xl px-6 pb-24">
-        <h2 className="mb-6 text-balance text-center font-heading text-3xl font-bold tracking-tight">
-          Or run it with Compose
-        </h2>
-        <CodeBlock code={COMPOSE} lang="yaml" />
-      </section>
+        <section className="mx-auto w-full max-w-5xl px-6 pb-24">
+          <h2 className="mb-10 text-balance text-center font-heading text-3xl font-bold tracking-tight">
+            Built to hand you files, not a streaming account
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map((feature) => (
+              <Card key={feature.title}>
+                <CardHeader>
+                  <CardTitle render={<h3 />}>{feature.title}</CardTitle>
+                  <CardDescription render={<p />}>
+                    {feature.description}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-3xl px-6 pb-24">
+          <h2 className="mb-6 text-balance text-center font-heading text-3xl font-bold tracking-tight">
+            Or run it with Compose
+          </h2>
+          <CodeBlock code={COMPOSE} lang="yaml" />
+        </section>
+      </main>
 
       <SiteFooter />
-    </main>
+    </>
   );
 }

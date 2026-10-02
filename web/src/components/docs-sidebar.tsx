@@ -63,7 +63,7 @@ export function MobileDocsMenu() {
         details.current.querySelector("summary")?.focus();
       }}
     >
-      <summary className="flex size-8 cursor-pointer list-none items-center justify-center rounded-md border hover:bg-accent [&::-webkit-details-marker]:hidden">
+      <summary className="flex size-8 cursor-pointer list-none items-center justify-center rounded-md border outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background [&::-webkit-details-marker]:hidden">
         <Menu aria-hidden="true" className="size-4" />
         <span className="sr-only">Open documentation menu</span>
       </summary>
