@@ -12,7 +12,7 @@ type StoredNavidromeSettings = {
   username: string;
   password: string;
 };
-export type Settings = { musicDir: string; navidrome?: StoredNavidromeSettings };
+export type Settings = { musicDir: string; navidrome?: StoredNavidromeSettings; lyrics?: boolean };
 export type PublicNavidromeSettings = {
   url: string;
   authMode: NavidromeAuthMode;
@@ -22,6 +22,7 @@ export type PublicNavidromeSettings = {
   urlPinned: boolean;
   authPinned: boolean;
 };
+export type LyricsSettings = { enabled: boolean; pinned: boolean };
 
 const globalSettings = globalThis as typeof globalThis & { muzikSettingsSaveChain?: Promise<void> };
 
@@ -55,6 +56,7 @@ async function load(): Promise<Settings | null> {
     return {
       musicDir: parsed.musicDir,
       ...(navidrome && { navidrome }),
+      ...(typeof parsed.lyrics === "boolean" && { lyrics: parsed.lyrics }),
     };
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
@@ -189,6 +191,28 @@ export async function saveNavidromeSettings(value: unknown) {
     settings.navidrome = { url, authMode, apiKey, username, password };
     await save(settings);
     return publicNavidromeSettings();
+  });
+}
+
+/**
+ * Lyrics are on unless turned off. A non-empty MUZIK_LYRICS pins the choice: a truthy
+ * value enables them, anything else disables them, and the settings page cannot override it.
+ */
+export async function lyricsSettings(): Promise<LyricsSettings> {
+  const environment = process.env.MUZIK_LYRICS?.trim();
+  if (environment) return { enabled: /^(1|true|yes|on)$/i.test(environment), pinned: true };
+  return { enabled: (await load())?.lyrics ?? true, pinned: false };
+}
+
+export async function saveLyricsEnabled(value: unknown) {
+  if (typeof value !== "boolean") throw new Error("Lyrics setting is invalid.");
+  return serializeSave(async () => {
+    if (process.env.MUZIK_LYRICS?.trim()) throw new Error("Lyrics are set by MUZIK_LYRICS.");
+    const settings = await load() ?? { musicDir: fromEnvironment() };
+    if (!settings.musicDir) throw new Error("Choose a music folder before configuring lyrics.");
+    settings.lyrics = value;
+    await save(settings);
+    return lyricsSettings();
   });
 }
 

@@ -2,17 +2,13 @@ import { execFile } from "node:child_process";
 import { access, writeFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { promisify } from "node:util";
+import { lyricsSettings } from "./settings.ts";
 import { USER_AGENT } from "./user-agent.ts";
 
 const exec = promisify(execFile);
 const LRCLIB_URL = "https://lrclib.net/api/get";
 
 type Track = { artist: string; title: string; album: string; durationSeconds: number };
-
-/** Off by default: it sends artist and track names to a third-party service. */
-export function lyricsEnabled() {
-  return /^(1|true|yes|on)$/i.test(process.env.MUZIK_LYRICS ?? "");
-}
 
 function lyricsPath(file: string) {
   return `${file.slice(0, -extname(file).length)}.lrc`;
@@ -60,7 +56,7 @@ async function lookup(track: Track) {
  * broken because a lyrics server was unreachable.
  */
 export async function fetchLyrics(files: string[]) {
-  if (!lyricsEnabled()) return 0;
+  if (!(await lyricsSettings()).enabled) return 0;
   let written = 0;
   for (const file of files) {
     const target = lyricsPath(file);

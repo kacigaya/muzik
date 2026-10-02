@@ -35,9 +35,13 @@ keep the password itself and not a hash of it.
 
 ## Synced lyrics
 
-With `MUZIK_LYRICS=1`, each finished track is looked up on lrclib.net by artist, title,
-album, and duration, and a matching `.lrc` is written next to the audio file.
+Each finished track is looked up on lrclib.net by artist, title, album, and duration, and a
+matching `.lrc` is written next to the audio file. Tracks that already have one are skipped.
 
-This sends those track names to a third-party service, which is why it is off by default.
+This is on by default. It sends those track names to a third-party service, so you can turn
+it off with the lyrics toggle on the settings page. The choice is saved to `settings.json`.
+Setting `MUZIK_LYRICS` pins it instead: `1` keeps lyrics on, `0` keeps them off, and the
+toggle is disabled.
+
 Failures are ignored: a download does not become broken because a lyrics server was
 unreachable.

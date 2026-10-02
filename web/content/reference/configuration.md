@@ -23,7 +23,7 @@ description: Every Muzik environment variable, its default, and what it controls
 | `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `flac`, or `mp3` |
 | `MUZIK_OUTPUT_TEMPLATE` | `Artist/Album/NN - Title [id].ext` | yt-dlp output template for downloaded files |
 | `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
-| `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |
+| `MUZIK_LYRICS` | unset | Overrides the lyrics toggle on the settings page: `1` always fetches synced lyrics from lrclib.net, `0` never does. Unset leaves it to the toggle, which is on by default |
 | `MUZIK_ALLOW_DELETE` | unset | Set to `1` to allow deleting files from the library browser |
 | `MUZIK_ALLOWED_ORIGINS` | unset | Comma-separated origins allowed to make state-changing API requests on top of Muzik's own |
 

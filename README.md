@@ -42,7 +42,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Serial queue with live progress, speed, and time remaining, persisted to disk and recovered after a restart
 - Pick m4a, opus, mp3, or transcoded FLAC
 - Album artist, album year, and one broad MusicBrainz genre normalized from the files themselves
-- Optional synced lyrics written next to each track as `.lrc`
+- Synced lyrics written next to each track as `.lrc`, on by default and switchable in settings
 - Optional Navidrome links and a scan trigger after each download
 - Optional routing of all downloads through a VPN container
 - Installable as a PWA, with `/` and `⌘K` shortcuts and light and dark themes

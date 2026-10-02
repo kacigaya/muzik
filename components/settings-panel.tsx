@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import { AUDIO_FORMATS, type AudioFormat } from "@/lib/types";
-import type { PublicNavidromeSettings } from "@/lib/settings";
+import type { LyricsSettings, PublicNavidromeSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 const RADIO_STEP: Record<string, number> = { ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1 };
 
@@ -43,11 +44,13 @@ export function SettingsPanel({
   musicDir,
   pinned,
   navidrome: initialNavidrome,
+  lyrics: initialLyrics,
   defaultFormat,
 }: {
   musicDir: string;
   pinned: boolean;
   navidrome: PublicNavidromeSettings;
+  lyrics: LyricsSettings;
   defaultFormat: AudioFormat;
 }) {
   const router = useRouter();
@@ -61,6 +64,9 @@ export function SettingsPanel({
   const [savingNavidrome, setSavingNavidrome] = useState(false);
   const [navidromeMessage, setNavidromeMessage] = useState<string | null>(null);
   const [navidromeError, setNavidromeError] = useState<string | null>(null);
+  const [lyrics, setLyrics] = useState(initialLyrics);
+  const [savingLyrics, setSavingLyrics] = useState(false);
+  const [lyricsError, setLyricsError] = useState<string | null>(null);
 
   // The choice only exists in the browser, so it is applied after mount rather than
   // during render, where it would not match the server markup.
@@ -75,6 +81,28 @@ export function SettingsPanel({
   function choose(value: AudioFormat) {
     setFormat(value);
     window.localStorage.setItem("muzik-format", value);
+  }
+
+  async function toggleLyrics(enabled: boolean) {
+    const previous = lyrics;
+    setLyrics({ ...lyrics, enabled });
+    setSavingLyrics(true);
+    setLyricsError(null);
+    try {
+      const response = await fetch("/api/settings/lyrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not save the lyrics setting.");
+      setLyrics(data.lyrics as LyricsSettings);
+    } catch (cause) {
+      setLyrics(previous);
+      setLyricsError(cause instanceof Error ? cause.message : "Could not save the lyrics setting.");
+    } finally {
+      setSavingLyrics(false);
+    }
   }
 
   async function updateNavidrome(clearAuth = false) {
@@ -151,6 +179,28 @@ export function SettingsPanel({
         </div>
         {/* Only the chosen format keeps its note so the buttons stay the height of the other controls. */}
         <p className="mt-2 text-xs text-muted-foreground">{FORMAT_NOTE[format]}</p>
+      </section>
+
+      <section aria-labelledby="lyrics-title" className="mb-8">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <h2 className="text-sm font-medium" id="lyrics-title">Lyrics</h2>
+          {lyrics.pinned && <Badge variant="secondary" size="sm">Environment override</Badge>}
+        </div>
+        <Card className="p-4">
+          {/* Field wires the label and description to the switch; a plain htmlFor would point at its hidden input. */}
+          <Field className="flex-row items-center justify-between gap-4" disabled={lyrics.pinned || savingLyrics} name="lyrics">
+            <div className="flex min-w-0 flex-col gap-1">
+              <FieldLabel>Fetch synced lyrics</FieldLabel>
+              <FieldDescription>
+                Looks up each finished track on lrclib.net by artist, title, album, and duration,
+                and writes a <code className="font-mono">.lrc</code> file next to it. This sends
+                those names to lrclib.net.
+              </FieldDescription>
+            </div>
+            <Switch checked={lyrics.enabled} onCheckedChange={toggleLyrics} />
+          </Field>
+        </Card>
+        {lyricsError && <p className="mt-2 text-xs text-destructive-foreground" role="alert">{lyricsError}</p>}
       </section>
 
       <section aria-labelledby="navidrome-title" className="mb-8">

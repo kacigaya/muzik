@@ -227,11 +227,13 @@ test("a scratch cleanup that cannot succeed does not take the queue down with it
     "MUZIK_LYRICS", "MUZIK_VPN_CONTAINER", "MUZIK_NAVIDROME_CONTAINER",
     "MUZIK_NAVIDROME_API_KEY", "MUZIK_NAVIDROME_USERNAME", "MUZIK_NAVIDROME_PASSWORD", "NAVIDROME_URL",
   ]) delete process.env[name];
+  // Lyrics are on by default; keep the worker away from lrclib.net.
+  process.env.MUZIK_LYRICS = "0";
 
   const scratchDirs = [];
   t.after(async () => {
     process.env.PATH = previousPath;
-    for (const name of ["MUZIK_MUSIC_DIR", "MUZIK_DATA_DIR", "MUZIK_TEMP_DIR", "MUZIK_YTDLP", "MUZIK_MIN_FREE_MB"]) {
+    for (const name of ["MUZIK_MUSIC_DIR", "MUZIK_DATA_DIR", "MUZIK_TEMP_DIR", "MUZIK_YTDLP", "MUZIK_MIN_FREE_MB", "MUZIK_LYRICS"]) {
       delete process.env[name];
     }
     for (const scratch of scratchDirs) await chmod(scratch, 0o700).catch(() => {});

@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { SettingsPanel } from "@/components/settings-panel";
 import { SiteNav } from "@/components/site-nav";
-import { musicDir, pinnedByEnvironment, publicNavidromeSettings } from "@/lib/settings";
+import { lyricsSettings, musicDir, pinnedByEnvironment, publicNavidromeSettings } from "@/lib/settings";
 import { defaultFormat } from "@/lib/validation";
 
 export default async function SettingsPage() {
   const library = await musicDir();
   if (!library) redirect("/");
-  const navidrome = await publicNavidromeSettings();
+  const [navidrome, lyrics] = await Promise.all([publicNavidromeSettings(), lyricsSettings()]);
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteNav navidromeUrl={navidrome.url} />
@@ -16,6 +16,7 @@ export default async function SettingsPage() {
           musicDir={library}
           pinned={pinnedByEnvironment()}
           navidrome={navidrome}
+          lyrics={lyrics}
           defaultFormat={defaultFormat()}
         />
       </main>
