@@ -20,7 +20,7 @@ read. It has no accounts and no database.
 - Watch a serial queue with live progress, speed, and time remaining, plus cancel and
   retry. Queue state is written to disk and recovered after a restart.
 - Browse what has been downloaded, re-queue a track, or delete files once deleting is enabled.
-- Pick m4a, opus, mp3, legacy transcoded FLAC, or [authorized Qobuz lossless](/docs/guide/qobuz-lossless/).
+- Pick m4a, opus, mp3, or transcoded FLAC.
 - Get one broad genre per download from MusicBrainz tags, with album artist and album year
   normalized from the files themselves.
 - Write [synced lyrics](/docs/guide/navidrome-lyrics/) next to each track as `.lrc`.
@@ -50,5 +50,4 @@ the same track from arriving twice.
 ## Licence and use
 
 Muzik is MIT licensed. Normal downloads talk to public, anonymous YouTube Music. There is
-no YouTube login and no cookie jar. Optional Qobuz lossless mode uses only the credentials
-supplied in the server environment. Use every source only for content you are allowed to save.
+no YouTube login and no cookie jar. Use every source only for content you are allowed to save.

@@ -35,7 +35,6 @@ function moveRadioFocus(event: React.KeyboardEvent<HTMLDivElement>) {
 const FORMAT_NOTE: Record<AudioFormat, string> = {
   m4a: "Kept as downloaded, no re-encoding",
   opus: "Smallest files at the same quality",
-  lossless: "Qobuz FLAC when authorized; otherwise native AAC or Opus",
   flac: "Transcoded from lossy YouTube audio; not lossless",
   mp3: "Widest player support",
 };

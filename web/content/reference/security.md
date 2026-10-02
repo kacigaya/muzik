@@ -21,25 +21,20 @@ it does not apply to non-browser clients such as `curl`. Add trusted hostnames w
 
 ## Untrusted input
 
-Muzik treats everything coming back from YouTube, Qobuz, and a hand-edited `jobs.json` as
+Muzik treats everything coming back from supported music sources and a hand-edited `jobs.json` as
 untrusted:
 
 - Source ids are matched against a strict pattern before they reach yt-dlp arguments or
-  name a file, including track ids returned by an album listing.
+  name a file.
 - Every downloaded path is resolved and confined to the configured music root.
 - Job fields loaded from disk are re-checked rather than trusted, because the file can be
   edited by hand.
-- Signed Qobuz stream URLs and every redirect must be HTTPS and must match
-  `MUZIK_QOBUZ_CDN_HOSTS`. An empty allowlist disables Qobuz resolution entirely.
-- Downloaded FLAC is bounded in size, checked for the `fLaC` signature, and probed with
-  ffprobe before it is placed.
 
 ## Secrets
 
 Navidrome credentials entered on the settings page are stored in `settings.json` at mode
 `0600` in plain text, because Muzik has no user key to encrypt them with. Environment
-variables take precedence and are never written to disk. Qobuz credentials are read only
-from the environment and are never accepted from the browser.
+variables take precedence and are never written to disk.
 
 ## Reporting
 

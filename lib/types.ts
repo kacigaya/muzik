@@ -1,6 +1,6 @@
 export type SearchKind = "song" | "album" | "playlist";
 
-export const AUDIO_FORMATS = ["m4a", "opus", "lossless", "flac", "mp3"] as const;
+export const AUDIO_FORMATS = ["m4a", "opus", "flac", "mp3"] as const;
 export type AudioFormat = (typeof AUDIO_FORMATS)[number];
 
 export type SearchItem = {
@@ -54,9 +54,6 @@ export type DownloadJob = {
   itemIndex: number | null;
   itemCount: number | null;
   downloadedItems: number;
-  qobuzItems: number;
-  fallbackItems: number;
-  skippedItems: number;
   warningCount: number;
   error: string | null;
   metadataWarning: string | null;

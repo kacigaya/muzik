@@ -119,19 +119,7 @@ function statusLabel(job: DownloadJob) {
 
 function sourceCodec(job: DownloadJob) {
   if (job.format === "flac") return "Transcoded FLAC · lossy source";
-  if (job.format !== "lossless") return null;
-  if (job.url) {
-    return job.fallbackItems ? `${job.fallbackItems} source-native audio` : "Source-native audio · Qobuz matching unavailable";
-  }
-  if (job.kind === "playlist") {
-    return job.fallbackItems ? `${job.fallbackItems} YouTube AAC/Opus` : "YouTube AAC/Opus · Qobuz matching unavailable";
-  }
-  const parts = [
-    job.qobuzItems ? `${job.qobuzItems} Qobuz FLAC` : null,
-    job.fallbackItems ? `${job.fallbackItems} YouTube AAC/Opus` : null,
-    job.skippedItems ? `${job.skippedItems} skipped` : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "Qobuz FLAC first · YouTube AAC/Opus fallback";
+  return null;
 }
 
 function isActive(job: DownloadJob) {

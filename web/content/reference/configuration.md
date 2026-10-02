@@ -20,12 +20,7 @@ description: Every Muzik environment variable, its default, and what it controls
 | `MUZIK_NAVIDROME_CONTAINER` | unset | Fallback container to run `navidrome scan` in after a download |
 | `MUZIK_VPN_CONTAINER` | unset | Container whose network namespace yt-dlp joins |
 | `MUZIK_CONTAINER_CLI` | `podman` | Command used for the two options above |
-| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `lossless`, `flac`, or `mp3` |
-| `MUZIK_QOBUZ_APP_ID` | unset | Qobuz-issued application ID used only by the server |
-| `MUZIK_QOBUZ_APP_SECRET` | unset | Qobuz-issued application secret used to sign file URL requests |
-| `MUZIK_QOBUZ_USER_AUTH_TOKEN` | unset | User token for an entitled Qobuz account |
-| `MUZIK_QOBUZ_QUALITY` | `27` | Preferred Qobuz FLAC tier: `27`, `7`, or `6`. Lower lossless tiers are tried in that order |
-| `MUZIK_QOBUZ_CDN_HOSTS` | unset | Required comma-separated HTTPS hostname allowlist for signed Qobuz audio URLs |
+| `MUZIK_AUDIO_FORMAT` | `m4a` | Default format for new downloads: `m4a`, `opus`, `flac`, or `mp3` |
 | `MUZIK_OUTPUT_TEMPLATE` | `Artist/Album/NN - Title [id].ext` | yt-dlp output template for downloaded files |
 | `MUZIK_MIN_FREE_MB` | `500` | Free space a download requires before it starts. `0` disables the check |
 | `MUZIK_LYRICS` | unset | Set to `1` to fetch synced lyrics from lrclib.net |

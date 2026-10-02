@@ -8,12 +8,8 @@ description: How the Muzik queue runs jobs, follows collections, and recovers af
 ## How a download works
 
 1. The queue accepts one job at a time and writes every state change to `jobs.json`.
-2. Normal jobs run through yt-dlp. Lossless song and album jobs first resolve a strict
-   Qobuz match, validate every signed URL and redirect against the configured CDN hosts,
-   verify the FLAC signature, and place the tagged file atomically. Track ids coming back
-   from an album listing are checked before they name a file, and a track carrying an
-   unusable id is skipped and counted as a warning. Unmatched tracks use native YouTube
-   AAC or Opus instead.
+2. Jobs run through yt-dlp, which downloads audio, converts it to the selected format
+   when needed, and embeds metadata and artwork.
 3. Finished files are re-read with ffprobe and ffmpeg. Album artist and year come from
    whatever the tracks agree on, and the genre comes from the artist's MusicBrainz tags,
    cached per artist and rate limited to one request per second. Unknown artists get `Other`.

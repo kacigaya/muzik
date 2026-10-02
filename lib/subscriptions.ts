@@ -3,7 +3,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { jobStore } from "./jobs.ts";
 import { musicDir } from "./settings.ts";
-import type { Subscription } from "./types.ts";
+import { AUDIO_FORMATS, type Subscription } from "./types.ts";
+import { defaultFormat } from "./validation.ts";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -23,7 +24,11 @@ export function isDue(subscription: Subscription, at = Date.now()) {
 async function read(): Promise<Subscription[]> {
   try {
     const parsed = JSON.parse(await readFile(file(), "utf8"));
-    return Array.isArray(parsed) ? parsed as Subscription[] : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as Subscription[]).map((subscription) => ({
+      ...subscription,
+      format: AUDIO_FORMATS.includes(subscription.format) ? subscription.format : defaultFormat(),
+    }));
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     return [];

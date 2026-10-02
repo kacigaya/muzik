@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createAlbumCover, hasArtworkSidebars } from "../lib/artwork.ts";
+import { createAlbumCover, hasArtworkSidebars, squareEmbeddedArtwork } from "../lib/artwork.ts";
 
 test("detects solid sidebars but rejects textured landscape images", () => {
   const pixels = Buffer.alloc(128 * 72 * 3, 80);
@@ -46,3 +46,22 @@ test("preserves alternative custom artwork before probing audio", async (t) => {
   await writeFile(join(folder, "Folder.png"), "custom");
   assert.equal(await createAlbumCover(join(folder, "missing.m4a")), false);
 });
+
+for (const extension of ["m4a", "flac"]) {
+  test(`squares embedded ${extension} artwork and keeps audio and tags`, async (t) => {
+    const folder = await mkdtemp(join(tmpdir(), "muzik-artwork-embedded-"));
+    t.after(() => rm(folder, { recursive: true, force: true }));
+    const file = join(folder, `song.${extension}`);
+    execFileSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=duration=0.1", "-f", "lavfi", "-i", "color=red:s=72x72,pad=128:72:28:0:blue", "-map", "0:a", "-map", "1:v", ...(extension === "m4a" ? ["-c:a", "aac"] : []), "-c:v", "mjpeg", "-frames:v", "1", "-disposition:v", "attached_pic", "-metadata", "title=Song", file]);
+    const audio = () => execFileSync("ffmpeg", ["-v", "error", "-i", file, "-map", "0:a", "-f", "md5", "-"], { encoding: "utf8" });
+    const before = audio();
+    assert.equal(await squareEmbeddedArtwork(file), true);
+    const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height:stream_disposition=attached_pic:format_tags=title", "-of", "json", file]));
+    const picture = probe.streams.find((stream) => stream.disposition?.attached_pic === 1);
+    assert.deepEqual([picture.width, picture.height], [72, 72]);
+    assert.equal(probe.format.tags.title ?? probe.format.tags.TITLE, "Song");
+    assert.equal(audio(), before);
+    assert.equal(await squareEmbeddedArtwork(file), false);
+    assert.deepEqual((await readdir(folder)).sort(), [`song.${extension}`]);
+  });
+}

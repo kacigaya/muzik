@@ -33,11 +33,6 @@ const FEATURES = [
       "Follow an album or playlist and Muzik re-checks it on a schedule, downloading whatever was added since.",
   },
   {
-    title: "Authorized lossless",
-    description:
-      "With your own Qobuz credentials, matched tracks download as native FLAC. Everything else falls back to YouTube AAC or Opus, never mislabeled.",
-  },
-  {
     title: "Real metadata",
     description:
       "Album artist and year come from what the tracks agree on. One broad genre per download from MusicBrainz tags, cached and rate limited.",
@@ -143,7 +138,7 @@ export default function Home() {
         </p>
         <p className="mt-4 max-w-2xl text-pretty text-base text-muted-foreground">
           One serial queue, live progress, followed albums, synced lyrics, and
-          authorized Qobuz lossless when you supply your own credentials.
+          a choice of m4a, opus, mp3, or transcoded FLAC.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <Button size="xl" render={<Link href={DOCS_URL} />}>

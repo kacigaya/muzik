@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { chmod, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
-import { createAlbumCover } from "./artwork.ts";
+import { createAlbumCover, squareEmbeddedArtwork } from "./artwork.ts";
 import { USER_AGENT } from "./user-agent.ts";
 
 const exec = promisify(execFile);
@@ -147,9 +147,12 @@ export async function organizeFiles(paths: string[], musicDir: string, dataDir: 
   for (const folder of folders) {
     try {
       const files = await audioFiles(folder);
+      let coverCreated = false;
       for (const file of files) {
         try {
-          if (await createAlbumCover(file)) break;
+          // The album cover is cut from embedded artwork, so create it before squaring that.
+          if (!coverCreated) coverCreated = await createAlbumCover(file);
+          await squareEmbeddedArtwork(file);
         } catch (cause) {
           result.warnings.push(`${relative(musicDir, file)}: Artwork update failed: ${cause instanceof Error ? cause.message : "Unknown error"}`);
         }

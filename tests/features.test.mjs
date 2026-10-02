@@ -6,15 +6,14 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { formatSelector, sourceUrl, upgradeJobs, YOUTUBE_EXTRACTOR_ARGS } from "../lib/jobs.ts";
 import { externalLink, isMusicLink } from "../lib/link.ts";
-import { isDue } from "../lib/subscriptions.ts";
+import { isDue, listSubscriptions } from "../lib/subscriptions.ts";
 import { sourceIdFromName, deletionAllowed } from "../lib/library.ts";
 import { validateJobRequest, validateLibraryPath, validateSubscription } from "../lib/validation.ts";
 
-test("keeps m4a untouched and uses native AAC or Opus for lossless fallback", () => {
+test("selects native m4a and the best audio for transcoded formats", () => {
   assert.equal(formatSelector("m4a"), "bestaudio[ext=m4a]/bestaudio/best");
   assert.equal(formatSelector("opus"), "bestaudio/best");
   assert.equal(formatSelector("flac"), "bestaudio/best");
-  assert.equal(formatSelector("lossless"), "bestaudio[acodec^=mp4a]/bestaudio[acodec^=opus]/bestaudio/best");
 });
 
 test("uses the embeddable YouTube client before the Android VR fallback", () => {
@@ -46,9 +45,6 @@ test("backfills jobs written by an older release", () => {
   assert.equal(job.etaSeconds, null);
   assert.equal(job.artist, null);
   assert.equal(job.durationSeconds, null);
-  assert.equal(job.qobuzItems, 0);
-  assert.equal(job.fallbackItems, 0);
-  assert.equal(job.skippedItems, 0);
 });
 
 test("drops values a hand-edited jobs.json could smuggle into yt-dlp", () => {
@@ -58,6 +54,44 @@ test("drops values a hand-edited jobs.json could smuggle into yt-dlp", () => {
   }]);
   assert.equal(job.url, null, "only supported sources survive");
   assert.equal(job.format, "m4a");
+});
+
+test("uses the configured default for retired saved formats and drops obsolete job fields", async (t) => {
+  const previousFormat = process.env.MUZIK_AUDIO_FORMAT;
+  const previousDataDir = process.env.MUZIK_DATA_DIR;
+  const dataDir = await mkdtemp(join(tmpdir(), "muzik-saved-formats-"));
+  process.env.MUZIK_AUDIO_FORMAT = "opus";
+  process.env.MUZIK_DATA_DIR = dataDir;
+  t.after(() => {
+    if (previousFormat === undefined) delete process.env.MUZIK_AUDIO_FORMAT;
+    else process.env.MUZIK_AUDIO_FORMAT = previousFormat;
+    if (previousDataDir === undefined) delete process.env.MUZIK_DATA_DIR;
+    else process.env.MUZIK_DATA_DIR = previousDataDir;
+  });
+
+  const [job] = upgradeJobs([{
+    id: "x", kind: "song", sourceId: "abcdefghijk", status: "completed",
+    format: "lossless", downloadedItems: 2, obsoleteSourceItems: 2,
+  }]);
+  assert.equal(job.format, "opus");
+  assert.equal(job.downloadedItems, 2);
+  assert.equal(job.status, "completed");
+  assert.equal(Object.hasOwn(job, "obsoleteSourceItems"), false);
+
+  await writeFile(join(dataDir, "subscriptions.json"), JSON.stringify([
+    { id: "retired", kind: "album", format: "lossless" },
+    { id: "supported", kind: "playlist", format: "mp3" },
+  ]));
+  assert.deepEqual((await listSubscriptions()).map(({ id, format }) => ({ id, format })), [
+    { id: "retired", format: "opus" },
+    { id: "supported", format: "mp3" },
+  ]);
+});
+
+test("rejects retired formats for new jobs and followed collections", () => {
+  const request = { kind: "album", sourceId: "OLAK5uy_example", title: "Album", subtitle: "Artist", format: "lossless" };
+  assert.throws(() => validateJobRequest(request), /unsupported/);
+  assert.throws(() => validateSubscription(request), /unsupported/);
 });
 
 test("refuses a job URL outside the supported sources", () => {

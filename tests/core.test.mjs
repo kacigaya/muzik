@@ -28,9 +28,6 @@ const BASE_JOB = {
   itemIndex: null,
   itemCount: null,
   downloadedItems: 0,
-  qobuzItems: 0,
-  fallbackItems: 0,
-  skippedItems: 0,
   warningCount: 0,
   error: null,
   metadataWarning: null,
@@ -50,11 +47,11 @@ test("validates search and download trust boundaries", () => {
   assert.deepEqual(
     validateJobRequest({
       kind: "song", sourceId: "abcdefghijk", title: "Song", subtitle: "Artist", artist: "Artist", album: "Album",
-      durationSeconds: 180, trackNumber: 2, format: "lossless",
+      durationSeconds: 180, trackNumber: 2, format: "opus",
     }),
     {
       kind: "song", sourceId: "abcdefghijk", url: null, title: "Song", subtitle: "Artist", artist: "Artist", album: "Album",
-      thumbnail: null, durationSeconds: 180, trackNumber: 2, format: "lossless",
+      thumbnail: null, durationSeconds: 180, trackNumber: 2, format: "opus",
     },
   );
   assert.throws(() => validateJobRequest({ kind: "song", sourceId: "abcdefghijk", title: "x", subtitle: "x", durationSeconds: -1 }), /Duration is invalid/);

@@ -22,7 +22,6 @@ export const NAV: NavSection[] = [
     items: [
       { title: "Downloads", href: "/docs/guide/downloads" },
       { title: "Audio Formats", href: "/docs/guide/audio-formats" },
-      { title: "Qobuz Lossless", href: "/docs/guide/qobuz-lossless" },
       { title: "Library and Metadata", href: "/docs/guide/library" },
       { title: "Navidrome and Lyrics", href: "/docs/guide/navidrome-lyrics" },
     ],

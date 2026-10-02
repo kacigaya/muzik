@@ -3,7 +3,7 @@ export const SITE_NAME = "Muzik";
 export const SOCIAL_IMAGE_URL = `${SITE_URL}/muzik-og.png`;
 export const DEFAULT_TITLE = "Muzik: Self-hosted Music Downloader for Your Own Library";
 export const DEFAULT_DESCRIPTION =
-  "Muzik is a self-hosted YouTube Music downloader that writes tagged, organized files a Navidrome, Jellyfin, or Plex library can read. Search, queue, follow albums, fetch synced lyrics, and download authorized Qobuz lossless FLAC.";
+  "Muzik is a self-hosted YouTube Music downloader that writes tagged, organized files a Navidrome, Jellyfin, or Plex library can read. Search, queue, follow albums, and fetch synced lyrics.";
 
 export const SEO_KEYWORDS = [
   "self-hosted music downloader",
@@ -12,7 +12,6 @@ export const SEO_KEYWORDS = [
   "Navidrome downloader",
   "music library organizer",
   "synced lyrics lrc",
-  "Qobuz lossless FLAC",
   "MusicBrainz genre tagging",
   "self-hosted music server",
   "Muzik",

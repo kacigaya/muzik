@@ -40,7 +40,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Expand an album or playlist and queue only the tracks you want
 - Follow a collection and Muzik re-checks it on a schedule, downloading whatever was added since
 - Serial queue with live progress, speed, and time remaining, persisted to disk and recovered after a restart
-- Pick m4a, opus, mp3, transcoded FLAC, or [authorized Qobuz lossless](https://kacigaya.github.io/muzik/docs/guide/qobuz-lossless/) with native YouTube fallback
+- Pick m4a, opus, mp3, or transcoded FLAC
 - Album artist, album year, and one broad MusicBrainz genre normalized from the files themselves
 - Optional synced lyrics written next to each track as `.lrc`
 - Optional Navidrome links and a scan trigger after each download
@@ -82,7 +82,6 @@ Full documentation lives at **<https://kacigaya.github.io/muzik/>**.
 - [Deploy](https://kacigaya.github.io/muzik/docs/getting-started/deploy/)
 - [Downloads](https://kacigaya.github.io/muzik/docs/guide/downloads/)
 - [Audio formats](https://kacigaya.github.io/muzik/docs/guide/audio-formats/)
-- [Qobuz lossless](https://kacigaya.github.io/muzik/docs/guide/qobuz-lossless/)
 - [Configuration](https://kacigaya.github.io/muzik/docs/reference/configuration/)
 - [Security](https://kacigaya.github.io/muzik/docs/reference/security/)
 
@@ -105,20 +104,20 @@ structure.
 ## Notes
 
 Normal downloads talk to public, anonymous YouTube Music. There is no YouTube login or
-cookie jar. Optional Qobuz lossless mode uses only the credentials supplied in the server
-environment. Use every source only for content you are allowed to save.
+cookie jar. Use every source only for content you are allowed to save.
 
 ### Album artwork
 
-After downloads, Muzik creates a square `cover.jpg` when embedded YouTube artwork
-has solid sidebars. Audio files stay unchanged. Existing `cover.*`, `folder.*`,
+After downloads, Muzik crops embedded YouTube artwork with solid sidebars to a square
+and writes it to `cover.jpg` and back into each audio file. Audio streams are copied
+without re-encoding. Navidrome serves embedded artwork for per-track cover requests,
+which many Subsonic clients use, so both copies matter. Existing `cover.*`, `folder.*`,
 and `front.*` artwork takes priority and is preserved. Square images and landscape
 images without solid sidebars are left alone.
 
 Repair existing albums with `node --experimental-strip-types scripts/fix_artwork.mjs`
 (using the configured music folder or `MUZIK_MUSIC_DIR`), then rescan the library in
-Navidrome. Clients may need to refresh their cached album images. This repairs
-server album artwork; it does not replace embedded covers in downloaded files.
+Navidrome. Clients may need to refresh their cached album images.
 
 ## License
 
