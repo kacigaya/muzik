@@ -1,0 +1,42 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { MuzikMark } from "@/components/muzik-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+const DOCS_URL = "/docs";
+const GITHUB_URL = "https://github.com/kacigaya/muzik";
+
+// children: extra nav items rendered first (e.g. the mobile docs menu).
+export function SiteHeader({
+  children,
+  showDocsLink = true,
+}: {
+  children?: React.ReactNode;
+  showDocsLink?: boolean;
+}) {
+  return (
+    <header className="sticky top-0 z-20 border-b bg-background">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <MuzikMark className="size-6" />
+          <span className="font-semibold tracking-tight">Muzik</span>
+        </Link>
+        <nav aria-label="Primary" className="flex items-center gap-2">
+          {children}
+          <ThemeToggle />
+          {showDocsLink && (
+            <Button variant="ghost" size="sm" render={<Link href={DOCS_URL} />}>
+              Docs
+            </Button>
+          )}
+          <Button variant="outline" size="sm" render={<a href={GITHUB_URL} />}>
+            GitHub
+          </Button>
+        </nav>
+      </div>
+    </header>
+  );
+}

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getDoc, getDocSlugs } from "@/lib/docs";
 import { canonicalUrl, DEFAULT_DESCRIPTION, SITE_NAME, SOCIAL_IMAGE_URL } from "@/lib/seo";
 import { CodeCopy } from "@/components/code-copy";
+import { DocsPager } from "@/components/docs-pager";
+import { DocsToc } from "@/components/docs-toc";
 
 export const dynamicParams = false;
 
@@ -48,6 +50,7 @@ export default async function DocPage(props: DocPageProps) {
   const { slug = [] } = await props.params;
   const doc = await getDoc(slug);
   if (!doc) notFound();
+  const href = slug.length ? `/docs/${slug.join("/")}` : "/docs";
   const path = slug.length ? `/docs/${slug.join("/")}/` : "/docs/";
   const articleSchema = {
     "@context": "https://schema.org",
@@ -69,10 +72,33 @@ export default async function DocPage(props: DocPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
       />
-      <article
-        className="prose prose-neutral max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-headings:text-balance prose-p:text-pretty prose-pre:rounded-2xl prose-pre:border prose-pre:bg-card prose-pre:p-6 prose-a:text-primary"
-        dangerouslySetInnerHTML={{ __html: doc.html }}
-      />
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_12rem] xl:gap-10">
+        <div className="min-w-0">
+          {doc.toc.length > 1 && (
+            <details className="mb-8 rounded-lg border px-4 py-3 text-sm xl:hidden">
+              <summary className="cursor-pointer font-medium">On this page</summary>
+              <div className="mt-3">
+                <DocsToc items={doc.toc} />
+              </div>
+            </details>
+          )}
+          <article
+            className="prose prose-neutral max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-headings:text-balance prose-p:text-pretty prose-pre:rounded-lg prose-pre:border prose-pre:bg-card prose-pre:p-6 prose-a:text-brand"
+            dangerouslySetInnerHTML={{ __html: doc.html }}
+          />
+          <DocsPager href={href} />
+        </div>
+        {doc.toc.length > 1 && (
+          <aside className="hidden xl:block">
+            <div className="sticky top-20 flex max-h-[calc(100dvh-6rem)] flex-col gap-3 overflow-y-auto">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                On this page
+              </p>
+              <DocsToc items={doc.toc} />
+            </div>
+          </aside>
+        )}
+      </div>
       <CodeCopy />
     </>
   );
