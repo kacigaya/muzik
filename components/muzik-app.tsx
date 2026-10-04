@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, ExternalLink, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -906,7 +906,7 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
             target="_blank"
             rel="noreferrer"
           >
-            <Github aria-hidden="true" className="size-3.5 shrink-0" /> GitHub
+            <ExternalLink aria-hidden="true" className="size-3.5 shrink-0" /> GitHub
           </a>
         </p>
       </footer>
