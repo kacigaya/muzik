@@ -21,10 +21,18 @@ npm test         # node --test plus the Python unittest suite
 npm run lint
 npm run typecheck
 npm run build
+node scripts/audit_dependencies.mjs
 ```
 
 GitHub Actions runs all four on every push and pull request, plus `npm audit` and a build
 of the Docker image.
+
+The audit gate rejects high and critical findings. A temporary exception for
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) applies only
+to dev-only `braces@3.0.3` and findings caused solely by that dependency. Next.js lint
+tooling requires it, and no patched release is available. The exception expires on
+November 7, 2026 at 00:00 UTC. Production copies, different versions, other advisories,
+audit errors, and expiry fail CI. Remove it when upstream provides a fix.
 
 ## Project structure
 
@@ -58,6 +66,7 @@ Build the static export the way CI does:
 ```bash
 npm run lint
 npm run typecheck
+node ../scripts/audit_dependencies.mjs
 NEXT_PUBLIC_BASE_PATH=/muzik npm run build
 ```
 

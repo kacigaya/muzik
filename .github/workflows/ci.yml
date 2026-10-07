@@ -53,7 +53,7 @@ jobs:
       # Advisories below high are reported without failing the run, so a transitive
       # low-severity finding cannot block an unrelated fix.
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: node scripts/audit_dependencies.mjs
 
   image:
     name: Docker image

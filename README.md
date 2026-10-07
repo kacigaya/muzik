@@ -113,12 +113,20 @@ npm test         # node --test plus the Python unittest suite
 npm run lint
 npm run typecheck
 npm run build
+node scripts/audit_dependencies.mjs
 ```
 
 GitHub Actions runs all four on every push and pull request, plus `npm audit` and a build
 of the Docker image. See
 [Development](https://kacigaya.github.io/muzik/docs/reference/development/) for the project
 structure.
+
+The audit gate rejects high and critical findings. Until November 7, 2026 UTC, it reports
+but excepts [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+only for dev-only `braces@3.0.3` and its dependent findings. Next.js lint tooling requires
+it and no patched release is available. Other advisories, production copies, changed
+versions, audit failures, and expiry still fail CI. Remove the exception when upstream
+provides a fix.
 
 ## Notes
 
