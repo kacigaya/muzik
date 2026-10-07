@@ -1,14 +1,13 @@
 import { spawn, execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, statfs, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { parseProgress } from "./progress.ts";
 import { organizeFiles, safeMusicPath } from "./metadata.ts";
 import { musicDir } from "./settings.ts";
 import { fetchLyrics } from "./lyrics.ts";
 import { startNavidromeScan } from "./navidrome.ts";
-import { pendingLidarr, registerLidarr, upgradeLidarr } from "./lidarr.ts";
 import { externalUrl } from "./sources.ts";
 import { defaultFormat } from "./validation.ts";
 import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type DownloadJob } from "./types.ts";
@@ -66,9 +65,6 @@ export function upgradeJobs(jobs: DownloadJob[]) {
     error: job.error ?? null,
     metadataWarning: job.metadataWarning ?? null,
     scanWarning: job.scanWarning ?? null,
-    downloadedPaths: Array.isArray(job.downloadedPaths) ? [...new Set(job.downloadedPaths.filter((path) => typeof path === "string"))] : [],
-    downloadRoot: typeof job.downloadRoot === "string" ? job.downloadRoot : null,
-    lidarr: upgradeLidarr(job.lidarr),
     downloadedItems: job.downloadedItems ?? 0,
     warningCount: job.warningCount ?? 0,
   }));
@@ -116,8 +112,6 @@ export class JobStore {
   private activeJobId: string | null = null;
   private workerRunning = false;
   private scanChain = Promise.resolve();
-  private lidarrChain = Promise.resolve();
-  private lidarrActive = new Set<string>();
   private persistChain = Promise.resolve();
   private lastPersistedProgress = -1;
   private readonly dataDir = process.env.MUZIK_DATA_DIR ?? "/srv/muzik/data";
@@ -158,8 +152,7 @@ export class JobStore {
   private async persist() {
     const terminal = this.jobs.filter((job) => !["queued", "running", "retrying"].includes(job.status));
     const keepTerminal = new Set(terminal.slice(0, TERMINAL_LIMIT).map((job) => job.id));
-    this.jobs = this.jobs.filter((job) => ["queued", "running", "retrying"].includes(job.status)
-      || job.lidarr?.status === "pending" || job.lidarr?.status === "scanning" || keepTerminal.has(job.id));
+    this.jobs = this.jobs.filter((job) => ["queued", "running", "retrying"].includes(job.status) || keepTerminal.has(job.id));
     const payload = JSON.stringify(this.jobs, null, 2);
     const target = join(this.dataDir, "jobs.json");
     const temporary = `${target}.tmp`;
@@ -182,11 +175,6 @@ export class JobStore {
 
   async list() {
     await this.load();
-    for (const job of this.jobs) {
-      if ((job.lidarr?.status === "pending" || job.lidarr?.status === "scanning") && !this.lidarrActive.has(job.id)) {
-        this.queueLidarr(job);
-      }
-    }
     void this.runWorker();
     return [...this.jobs];
   }
@@ -213,9 +201,6 @@ export class JobStore {
       error: null,
       metadataWarning: null,
       scanWarning: null,
-      downloadedPaths: [],
-      downloadRoot: null,
-      lidarr: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -266,9 +251,6 @@ export class JobStore {
       error: null,
       metadataWarning: null,
       scanWarning: null,
-      downloadedPaths: [],
-      downloadRoot: null,
-      lidarr: null,
       updatedAt: now(),
     });
     await this.persist();
@@ -278,56 +260,9 @@ export class JobStore {
 
   async clearFinished() {
     await this.load();
-    this.jobs = this.jobs.filter((job) => canCancel(job) || job.lidarr?.status === "pending" || job.lidarr?.status === "scanning");
+    this.jobs = this.jobs.filter((job) => canCancel(job));
     await this.persist();
     return [...this.jobs];
-  }
-
-  async retryLidarr(id: string) {
-    await this.load();
-    const job = this.jobs.find((candidate) => candidate.id === id);
-    if (!job) throw new Error("Job not found.");
-    if (!["completed", "completed_with_warnings"].includes(job.status) || !job.downloadedPaths.length) {
-      throw new Error("This job has no completed files to register in Lidarr.");
-    }
-    if (this.lidarrActive.has(id) || job.lidarr?.status === "pending" || job.lidarr?.status === "scanning") {
-      throw new Error("Lidarr registration is already in progress.");
-    }
-    this.lidarrActive.add(id);
-    try {
-      const registration = await pendingLidarr(job);
-      if (!registration) throw new Error("Enable Lidarr in Settings before retrying registration.");
-      job.lidarr = registration;
-      job.updatedAt = now();
-      await this.persist();
-      this.queueLidarr(job);
-      return job;
-    } catch (cause) {
-      this.lidarrActive.delete(id);
-      if (job.lidarr?.status === "pending") {
-        job.lidarr.status = "warning";
-        job.lidarr.message = "Could not save Lidarr registration. Retry registration.";
-      }
-      throw cause;
-    }
-  }
-
-  private queueLidarr(job: DownloadJob) {
-    this.lidarrActive.add(job.id);
-    const run = async () => {
-      try {
-        await registerLidarr(job, () => this.persist());
-      } catch {
-        if (job.lidarr) {
-          job.lidarr.status = "warning";
-          job.lidarr.message = "Could not save Lidarr registration. Check Lidarr before retrying.";
-        }
-        try { await this.persist(); } catch { /* the next successful save retains the warning */ }
-      } finally {
-        this.lidarrActive.delete(job.id);
-      }
-    };
-    this.lidarrChain = this.lidarrChain.then(run, run);
   }
 
   private async runWorker() {
@@ -581,28 +516,15 @@ export class JobStore {
       job.error = safeError(errors);
     } else {
       job.status = errors.length ? "completed_with_warnings" : "completed";
-      job.downloadRoot = musicRoot;
-      job.downloadedPaths = [...downloadedFiles].map((file) => relative(musicRoot, file));
       const organized = await organizeFiles([...downloadedFiles], musicRoot, this.dataDir);
       await fetchLyrics([...downloadedFiles]);
       if (organized.warnings.length) {
         job.metadataWarning = `Downloaded, but metadata organization had ${organized.warnings.length} warning(s).`;
       }
-      if (job.downloadedPaths.length) {
-        try {
-          job.lidarr = await pendingLidarr(job);
-        } catch {
-          job.lidarr = {
-            status: "warning", commandId: null, serverUrl: "", musicRoot, lidarrRoot: "", startedAt: null,
-            recognizedFiles: 0, message: "Lidarr settings are invalid. Check Settings, then retry registration.",
-          };
-        }
-      }
     }
     await this.persist();
     if (job.downloadedItems > 0 && (job.status === "completed" || job.status === "completed_with_warnings")) {
       this.scheduleNavidromeScan(job);
-      if (job.lidarr?.status === "pending" && !this.lidarrActive.has(job.id)) this.queueLidarr(job);
     }
   }
 }

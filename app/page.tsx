@@ -1,12 +1,13 @@
 import { MuzikApp } from "@/components/muzik-app";
 import { Onboarding } from "@/components/onboarding";
-import { musicDir, publicNavidromeSettings } from "@/lib/settings";
+import { musicDir, publicLidarrSettings, publicNavidromeSettings } from "@/lib/settings";
 import { defaultFormat } from "@/lib/validation";
 
 export default async function Page() {
   if (!(await musicDir())) {
     return <Onboarding suggestion={process.env.MUZIK_DEFAULT_MUSIC_DIR ?? ""} />;
   }
-  const navidrome = await publicNavidromeSettings();
-  return <MuzikApp navidromeUrl={navidrome.url} defaultFormat={defaultFormat()} />;
+  const [navidrome, lidarr] = await Promise.all([publicNavidromeSettings(), publicLidarrSettings()]);
+  const lidarrEnabled = lidarr.enabled && Boolean(lidarr.url) && lidarr.apiKeyConfigured;
+  return <MuzikApp navidromeUrl={navidrome.url} lidarrEnabled={lidarrEnabled} defaultFormat={defaultFormat()} />;
 }

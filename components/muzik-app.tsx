@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, ListPlus, Music2, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -134,7 +134,7 @@ function focusSearch() {
   document.getElementById("music-search")?.focus();
 }
 
-export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string; defaultFormat: AudioFormat }) {
+export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navidromeUrl: string; lidarrEnabled: boolean; defaultFormat: AudioFormat }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [suggesting, setSuggesting] = useState(false);
@@ -143,8 +143,6 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [lidarrRetrying, setLidarrRetrying] = useState<string[]>([]);
-  const [lidarrErrors, setLidarrErrors] = useState<Record<string, string>>({});
   // MUZIK_AUDIO_FORMAT applies until this browser picks a format on the settings page.
   const [format, setFormat] = useState<AudioFormat>(defaultFormat);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -152,6 +150,7 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
   const [tracks, setTracks] = useState<Record<string, SearchItem[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showAllJobs, setShowAllJobs] = useState(false);
+  const [requesting, setRequesting] = useState<Set<string>>(new Set());
   const jobStatuses = useRef<Map<string, JobStatus> | null>(null);
 
   const applyJobs = useCallback((nextJobs: DownloadJob[]) => {
@@ -317,6 +316,30 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
     return true;
   }
 
+  async function requestInLidarr(item: SearchItem) {
+    const key = sourceKey(item);
+    setMessage(null);
+    setRequesting((keys) => new Set(keys).add(key));
+    try {
+      const response = await fetch("/api/lidarr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artist: item.artist, album: item.album }),
+      });
+      const data: { message?: string; error?: string } = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Lidarr request failed.");
+      toastManager.add({ id: `lidarr-${key}`, type: "success", title: "Requested in Lidarr", description: data.message });
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Lidarr request failed.");
+    } finally {
+      setRequesting((keys) => {
+        const next = new Set(keys);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+
   async function toggleTracks(item: SearchItem) {
     const key = sourceKey(item);
     if (expanded === key) {
@@ -408,21 +431,6 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
       // Clearing is the only way the queue shrinks, so a later refill starts collapsed again.
       setShowAllJobs(false);
     } else setMessage(data.error ?? "Could not clear the queue.");
-  }
-
-  async function retryLidarr(job: DownloadJob) {
-    setLidarrRetrying((ids) => [...ids, job.id]);
-    setLidarrErrors((errors) => ({ ...errors, [job.id]: "" }));
-    try {
-      const response = await fetch(`/api/jobs/${job.id}/lidarr/retry`, { method: "POST" });
-      const data: { error?: string } = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Lidarr retry failed.");
-      await loadJobs();
-    } catch (cause) {
-      setLidarrErrors((errors) => ({ ...errors, [job.id]: cause instanceof Error ? cause.message : "Lidarr retry failed." }));
-    } finally {
-      setLidarrRetrying((ids) => ids.filter((id) => id !== job.id));
-    }
   }
 
   const activeJobs = jobs.filter(isActive).length;
@@ -519,6 +527,19 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
                         : <BellOff aria-hidden="true" />}
                     </Button>
                   </>
+                )}
+                {lidarrEnabled && item.kind !== "playlist" && item.artist && item.album && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    loading={requesting.has(key)}
+                    disabled={requesting.has(key)}
+                    onClick={() => requestInLidarr(item)}
+                    aria-label={item.kind === "song" ? `Request album ${item.album} in Lidarr` : `Request ${item.title} in Lidarr`}
+                    title={item.kind === "song" ? `Request album ${item.album} in Lidarr` : "Request in Lidarr"}
+                  >
+                    <ListPlus aria-hidden="true" />
+                  </Button>
                 )}
                 {itemAction(item)}
               </div>
@@ -742,8 +763,7 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
             {jobs.length ? (
               <>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1" id="queue-list">
-                {visibleJobs.map((job) => job.status === "completed" && !job.metadataWarning && !job.scanWarning
-                  && (!job.lidarr || job.lidarr.status === "recognized") ? (
+                {visibleJobs.map((job) => job.status === "completed" && !job.metadataWarning && !job.scanWarning ? (
                   /* Finished downloads collapse to one line; anything unfinished or warned keeps the full card. */
                   <Card className="min-w-0 flex-row items-center gap-2.5 p-2" key={job.id}>
                     <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
@@ -758,7 +778,6 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
                       <p className="truncate text-sm font-medium">{job.title}</p>
                       <p className="truncate text-xs text-muted-foreground">{job.subtitle}</p>
                       {sourceCodec(job) && <p className="truncate font-mono text-[10px] text-muted-foreground">{sourceCodec(job)}</p>}
-                      {job.lidarr && <p className="text-xs text-success-foreground">{job.lidarr.message}</p>}
                     </div>
                     <NavidromeCheck job={job} size="icon-sm" baseUrl={navidromeUrl} />
                   </Card>
@@ -809,22 +828,6 @@ export function MuzikApp({ navidromeUrl, defaultFormat }: { navidromeUrl: string
                     {job.error && <p className="mt-2 text-xs leading-normal text-destructive-foreground">{job.error}</p>}
                     {job.metadataWarning && <p className="mt-2 text-xs leading-normal text-warning-foreground">{job.metadataWarning}</p>}
                     {job.scanWarning && <p className="mt-2 text-xs leading-normal text-warning-foreground">{job.scanWarning}</p>}
-                    {job.lidarr && (
-                      <div className="mt-2 flex flex-col gap-2" aria-live="polite">
-                        <p className={`text-xs leading-normal ${job.lidarr.status === "warning" ? "text-warning-foreground"
-                          : job.lidarr.status === "recognized" ? "text-success-foreground" : "text-muted-foreground"}`}>
-                          {job.lidarr.message}
-                        </p>
-                        {job.lidarr.status === "warning" && (
-                          <Button type="button" variant="ghost" size="xs" className="self-start" loading={lidarrRetrying.includes(job.id)}
-                            disabled={lidarrRetrying.includes(job.id)} onClick={() => void retryLidarr(job)}
-                            aria-label={`Retry Lidarr registration for ${job.title}`}>
-                            <RefreshCw aria-hidden="true" /> Retry Lidarr
-                          </Button>
-                        )}
-                        {lidarrErrors[job.id] && <p role="alert" className="text-xs text-destructive-foreground">{lidarrErrors[job.id]}</p>}
-                      </div>
-                    )}
                     {(job.status === "queued" || job.status === "running" || job.status === "retrying" || job.status === "failed" || job.status === "cancelled") && (
                       <div className="mt-2 flex min-h-6 items-center justify-between gap-2">
                         {(job.status === "queued" || job.status === "running" || job.status === "retrying") && (
