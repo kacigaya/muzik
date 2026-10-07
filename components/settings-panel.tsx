@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import { AUDIO_FORMATS, type AudioFormat } from "@/lib/types";
-import type { LyricsSettings, PublicNavidromeSettings } from "@/lib/settings";
+import type { LyricsSettings, PublicLidarrSettings, PublicNavidromeSettings } from "@/lib/settings";
+import { LidarrSettings } from "@/components/lidarr-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,12 +46,14 @@ export function SettingsPanel({
   pinned,
   navidrome: initialNavidrome,
   lyrics: initialLyrics,
+  lidarr,
   defaultFormat,
 }: {
   musicDir: string;
   pinned: boolean;
   navidrome: PublicNavidromeSettings;
   lyrics: LyricsSettings;
+  lidarr: PublicLidarrSettings;
   defaultFormat: AudioFormat;
 }) {
   const router = useRouter();
@@ -315,6 +318,8 @@ export function SettingsPanel({
           </form>
         </Card>
       </section>
+
+      <LidarrSettings initial={lidarr} />
 
       <section aria-labelledby="library-title">
         <h2 className="mb-1 text-sm font-medium" id="library-title">Music folder</h2>

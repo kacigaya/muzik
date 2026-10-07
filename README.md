@@ -44,6 +44,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Album artist, album year, and one broad MusicBrainz genre normalized from the files themselves
 - Synced lyrics written next to each track as `.lrc`, on by default and switchable in settings
 - Optional Navidrome links and a scan trigger after each download
+- Optional Lidarr registration with file recognition feedback and manual retry
 - Optional routing of all downloads through a VPN container
 - Installable as a PWA, with `/` and `⌘K` shortcuts and light and dark themes
 
@@ -87,6 +88,24 @@ Full documentation lives at **<https://kacigaya.github.io/muzik/>**.
 
 The site source is in [`web/`](web).
 
+### Lidarr
+
+Enable Lidarr in Muzik's Settings and enter its server URL and API key from
+Lidarr **Settings > General**. Use **Test connection** before saving. Both apps must
+have access to the same music files, within a root folder configured in Lidarr.
+If Muzik sees the shared folder as `/music` and Lidarr sees it as `/media/music`,
+set **Music root inside Lidarr** to `/media/music`; otherwise leave it blank.
+
+Muzik scans finished songs, albums, and playlists in place, adds no new artists,
+and reports how many files Lidarr matched. Add artists in Lidarr first. Singles,
+playlist collections, incomplete albums, and releases Lidarr cannot identify may
+remain unmatched. Lidarr can update tags according to its own settings.
+
+Lidarr errors leave downloads successful. **Retry Lidarr** repeats registration
+without downloading again. Existing downloads from before this feature have no
+saved file paths and are not registered automatically. Environment overrides are
+listed in the [configuration reference](https://kacigaya.github.io/muzik/docs/reference/configuration/).
+
 ## Development
 
 ```bash
@@ -94,12 +113,20 @@ npm test         # node --test plus the Python unittest suite
 npm run lint
 npm run typecheck
 npm run build
+node scripts/audit_dependencies.mjs
 ```
 
 GitHub Actions runs all four on every push and pull request, plus `npm audit` and a build
 of the Docker image. See
 [Development](https://kacigaya.github.io/muzik/docs/reference/development/) for the project
 structure.
+
+The audit gate rejects high and critical findings. Until November 7, 2026 UTC, it reports
+but excepts [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+only for dev-only `braces@3.0.3` and its dependent findings. Next.js lint tooling requires
+it and no patched release is available. Other advisories, production copies, changed
+versions, audit failures, and expiry still fail CI. Remove the exception when upstream
+provides a fix.
 
 ## Notes
 
