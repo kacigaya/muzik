@@ -14,12 +14,12 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
   const [enabled, setEnabled] = useState(initial.enabled);
   const [url, setUrl] = useState(initial.url);
   const [apiKey, setApiKey] = useState("");
-  const [musicDir, setMusicDir] = useState(initial.musicDir);
+  const [rootFolder, setRootFolder] = useState(initial.rootFolder);
   const [busy, setBusy] = useState<"save" | "test" | null>(null);
   const [error, setError] = useState<string | null>(initial.configurationError);
   const [message, setMessage] = useState<string | null>(null);
-  const pinned = settings.enabledPinned || settings.urlPinned || settings.apiKeyPinned || settings.musicDirPinned;
-  const allPinned = settings.enabledPinned && settings.urlPinned && settings.apiKeyPinned && settings.musicDirPinned;
+  const pinned = settings.enabledPinned || settings.urlPinned || settings.apiKeyPinned || settings.rootFolderPinned;
+  const allPinned = settings.enabledPinned && settings.urlPinned && settings.apiKeyPinned && settings.rootFolderPinned;
 
   async function submit(action: "save" | "test") {
     setBusy(action);
@@ -28,7 +28,7 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
     try {
       const response = await fetch(`/api/settings/lidarr${action === "test" ? "/test" : ""}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, url, apiKey, musicDir }),
+        body: JSON.stringify({ enabled, url, apiKey, rootFolder }),
       });
       const data: { lidarr?: PublicLidarrSettings; message?: string; error?: string } = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not configure Lidarr.");
@@ -37,7 +37,7 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
         setSettings(data.lidarr);
         setEnabled(data.lidarr.enabled);
         setUrl(data.lidarr.url);
-        setMusicDir(data.lidarr.musicDir);
+        setRootFolder(data.lidarr.rootFolder);
         setApiKey("");
         setMessage("Lidarr settings saved.");
       } else {
@@ -56,8 +56,8 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
         <div>
           <h2 id="lidarr-title" className="mb-1 text-sm font-medium">Lidarr</h2>
           <p className="text-xs text-muted-foreground">
-            Registers finished downloads for existing artists, keeping files in place.
-            Muzik shows which files Lidarr recognized and lets you retry unmatched files.
+            Sends albums from search results to Lidarr. Lidarr monitors each album,
+            searches its indexers, and downloads it. A song requests the album it belongs to.
           </p>
         </div>
         {pinned && <Badge variant="secondary" size="sm">Environment override</Badge>}
@@ -67,8 +67,8 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
           onSubmit={(event) => { event.preventDefault(); void submit("save"); }}>
           <Field name="lidarrEnabled" disabled={settings.enabledPinned || busy !== null} className="flex-row items-center justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1">
-              <FieldLabel>Register downloads automatically</FieldLabel>
-              <FieldDescription>{settings.enabledPinned ? "Set by MUZIK_LIDARR_ENABLED." : "Applies to new songs, albums, and playlists."}</FieldDescription>
+              <FieldLabel>Enable Lidarr requests</FieldLabel>
+              <FieldDescription>{settings.enabledPinned ? "Set by MUZIK_LIDARR_ENABLED." : "Shows Request in Lidarr on songs and albums in search results."}</FieldDescription>
             </div>
             <Switch checked={enabled} onCheckedChange={setEnabled} />
           </Field>
@@ -85,12 +85,12 @@ export function LidarrSettings({ initial }: { initial: PublicLidarrSettings }) {
             <FieldDescription>{settings.apiKeyPinned ? "Set by MUZIK_LIDARR_API_KEY."
               : "Find it under Lidarr Settings > General. Leave blank to keep the saved key; changing servers requires a new key."}</FieldDescription>
           </Field>
-          <Field name="lidarrMusicDir" disabled={settings.musicDirPinned || busy !== null}>
-            <FieldLabel htmlFor="lidarr-music-dir">Music root inside Lidarr</FieldLabel>
-            <Input id="lidarr-music-dir" type="text" value={musicDir} onChange={(event) => setMusicDir(event.target.value)}
-              placeholder="Same path as Muzik" disabled={settings.musicDirPinned || busy !== null} />
-            <FieldDescription>{settings.musicDirPinned ? "Set by MUZIK_LIDARR_MUSIC_DIR."
-              : "Optional. Both apps must share the same files. If Muzik uses /music and Lidarr uses /media/music, enter /media/music."}</FieldDescription>
+          <Field name="lidarrRootFolder" disabled={settings.rootFolderPinned || busy !== null}>
+            <FieldLabel htmlFor="lidarr-root-folder">Root folder for new artists</FieldLabel>
+            <Input id="lidarr-root-folder" type="text" value={rootFolder} onChange={(event) => setRootFolder(event.target.value)}
+              placeholder="First Lidarr root folder" disabled={settings.rootFolderPinned || busy !== null} />
+            <FieldDescription>{settings.rootFolderPinned ? "Set by MUZIK_LIDARR_ROOT_FOLDER."
+              : "Optional. Enter a path exactly as listed in Lidarr Settings > Media Management. New artists use its default quality and metadata profiles."}</FieldDescription>
           </Field>
           {error && <p id="lidarr-error" className="text-xs text-destructive-foreground" role="alert">{error}</p>}
           {message && <p className="text-xs text-success-foreground" role="status">{message}</p>}

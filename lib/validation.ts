@@ -145,3 +145,14 @@ export function validateJobId(value: string): string {
   if (!/^[0-9a-f-]{36}$/i.test(value)) throw new Error("Job ID is invalid.");
   return value;
 }
+
+/** Lidarr works with albums, so a song is requested through the album it belongs to. */
+export function validateLidarrRequest(value: unknown) {
+  if (!value || typeof value !== "object") throw new Error("Invalid request.");
+  const body = value as Record<string, unknown>;
+  const artist = boundedText(body.artist, "Artist", 300);
+  const album = boundedText(body.album, "Album", 300);
+  // Placeholders from scripts/search_music.py when the source omits a name.
+  if (artist === "Unknown artist" || album === "Unknown album") throw new Error("This item has no album and artist to request.");
+  return { artist, album };
+}

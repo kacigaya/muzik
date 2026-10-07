@@ -6,7 +6,4 @@ export async function register() {
   startScheduler();
   // Catch up on anything that came due while the server was down.
   void syncDue();
-  const { jobStore } = await import("./lib/jobs.ts");
-  // Resume persisted Lidarr scans even before a browser opens the queue.
-  void jobStore.list().catch(() => {});
 }

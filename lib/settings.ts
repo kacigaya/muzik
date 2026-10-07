@@ -12,13 +12,13 @@ type StoredNavidromeSettings = {
   username: string;
   password: string;
 };
-type StoredLidarrSettings = { enabled: boolean; url: string; apiKey: string; musicDir: string };
+type StoredLidarrSettings = { enabled: boolean; url: string; apiKey: string; rootFolder: string };
 export type PublicLidarrSettings = Omit<StoredLidarrSettings, "apiKey"> & {
   apiKeyConfigured: boolean;
   enabledPinned: boolean;
   urlPinned: boolean;
   apiKeyPinned: boolean;
-  musicDirPinned: boolean;
+  rootFolderPinned: boolean;
   configurationError: string | null;
 };
 export type Settings = { musicDir: string; navidrome?: StoredNavidromeSettings; lidarr?: StoredLidarrSettings; lyrics?: boolean };
@@ -62,12 +62,15 @@ async function load(): Promise<Settings | null> {
       && typeof candidate.password === "string"
       ? candidate as StoredNavidromeSettings
       : undefined;
+    const lidarr = parsed.lidarr as Partial<StoredLidarrSettings> | undefined;
     return {
       musicDir: parsed.musicDir,
       ...(navidrome && { navidrome }),
-      ...(parsed.lidarr && typeof parsed.lidarr.enabled === "boolean"
-        && typeof parsed.lidarr.url === "string" && typeof parsed.lidarr.apiKey === "string"
-        && typeof parsed.lidarr.musicDir === "string" && { lidarr: parsed.lidarr }),
+      // Settings saved before requests existed have no rootFolder; blank selects Lidarr's first root.
+      ...(lidarr && typeof lidarr.enabled === "boolean" && typeof lidarr.url === "string"
+        && typeof lidarr.apiKey === "string" && {
+        lidarr: { enabled: lidarr.enabled, url: lidarr.url, apiKey: lidarr.apiKey, rootFolder: typeof lidarr.rootFolder === "string" ? lidarr.rootFolder : "" },
+      }),
       ...(typeof parsed.lyrics === "boolean" && { lyrics: parsed.lyrics }),
     };
   } catch (cause) {
@@ -235,20 +238,28 @@ function lidarrPins() {
     enabledPinned: Boolean(process.env.MUZIK_LIDARR_ENABLED?.trim()),
     urlPinned: Boolean(process.env.MUZIK_LIDARR_URL?.trim()),
     apiKeyPinned: Boolean(process.env.MUZIK_LIDARR_API_KEY),
-    musicDirPinned: Boolean(process.env.MUZIK_LIDARR_MUSIC_DIR?.trim()),
+    rootFolderPinned: Boolean(process.env.MUZIK_LIDARR_ROOT_FOLDER?.trim()),
   };
+}
+
+/** Lidarr may run on another OS, so this is matched verbatim against Lidarr's own root folder list. */
+function cleanRootFolder(value: unknown) {
+  if (typeof value !== "string") throw new Error("Lidarr root folder is invalid.");
+  const path = value.trim();
+  if (path.length > 1000 || /[\u0000-\u001f\u007f]/.test(path)) throw new Error("Lidarr root folder is invalid.");
+  return path;
 }
 
 function effectiveLidarr(stored?: StoredLidarrSettings): StoredLidarrSettings {
   const pins = lidarrPins();
   const url = pins.urlPinned ? cleanServerUrl(process.env.MUZIK_LIDARR_URL, "Lidarr") : stored?.url ?? "";
-  const musicDir = pins.musicDirPinned ? process.env.MUZIK_LIDARR_MUSIC_DIR : stored?.musicDir;
+  const rootFolder = pins.rootFolderPinned ? process.env.MUZIK_LIDARR_ROOT_FOLDER : stored?.rootFolder;
   return {
     enabled: pins.enabledPinned ? /^(1|true|yes|on)$/i.test(process.env.MUZIK_LIDARR_ENABLED!.trim()) : stored?.enabled ?? false,
     url: url ? cleanServerUrl(url, "Lidarr") : "",
     // A server override must never receive another server's saved credentials.
     apiKey: process.env.MUZIK_LIDARR_API_KEY || (url === stored?.url ? stored.apiKey : ""),
-    musicDir: musicDir ? validateMusicDir(musicDir) : "",
+    rootFolder: cleanRootFolder(rootFolder ?? ""),
   };
 }
 
@@ -262,7 +273,7 @@ export async function publicLidarrSettings(): Promise<PublicLidarrSettings> {
     return { ...settings, apiKeyConfigured: Boolean(apiKey), ...lidarrPins(), configurationError: null };
   } catch (cause) {
     return {
-      enabled: false, url: "", musicDir: "", apiKeyConfigured: false, ...lidarrPins(),
+      enabled: false, url: "", rootFolder: "", apiKeyConfigured: false, ...lidarrPins(),
       configurationError: cause instanceof Error ? cause.message : "Lidarr configuration is invalid.",
     };
   }
@@ -283,10 +294,8 @@ function prepareLidarr(value: unknown, current?: StoredLidarrSettings): StoredLi
   const savedKey = url === current?.url ? current.apiKey : "";
   const apiKey = pins.apiKeyPinned ? savedKey : supplied || savedKey;
   if (url && !apiKey && !pins.apiKeyPinned) throw new Error("Lidarr API key is required. Supply a new key when changing servers.");
-  const musicDirValue = pins.musicDirPinned ? process.env.MUZIK_LIDARR_MUSIC_DIR : input.musicDir;
-  if (typeof musicDirValue !== "string") throw new Error("Lidarr music root is invalid.");
-  const musicDir = musicDirValue.trim() ? validateMusicDir(musicDirValue) : "";
-  return { enabled, url, apiKey, musicDir };
+  const rootFolder = cleanRootFolder(pins.rootFolderPinned ? process.env.MUZIK_LIDARR_ROOT_FOLDER : input.rootFolder);
+  return { enabled, url, apiKey, rootFolder };
 }
 
 /** Validate unsaved form values for connection testing without persisting or returning a key. */

@@ -1,70 +1,59 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { once } from "node:events";
-import { setTimeout as sleep } from "node:timers/promises";
 import { lidarrConnection, lidarrTestConnection, publicLidarrSettings, saveLidarrSettings, saveLyricsEnabled } from "../lib/settings.ts";
-import { mapLidarrPath, pendingLidarr, registerLidarr, testLidarrConnection } from "../lib/lidarr.ts";
-import { JobStore, upgradeJobs } from "../lib/jobs.ts";
+import { matchAlbum, requestLidarrAlbum, testLidarrConnection } from "../lib/lidarr.ts";
+import { validateLidarrRequest } from "../lib/validation.ts";
 
-const ENV_NAMES = ["MUZIK_DATA_DIR", "MUZIK_TEMP_DIR", "MUZIK_MUSIC_DIR", "MUZIK_LIDARR_ENABLED",
-  "MUZIK_LIDARR_URL", "MUZIK_LIDARR_API_KEY", "MUZIK_LIDARR_MUSIC_DIR", "MUZIK_YTDLP", "MUZIK_MIN_FREE_MB",
-  "MUZIK_VPN_CONTAINER", "MUZIK_NAVIDROME_CONTAINER", "MUZIK_LYRICS"];
-const FILE = "Artist/Album/01 - Song.m4a";
-const ID = "11111111-1111-1111-1111-111111111111";
+const ENV_NAMES = ["MUZIK_DATA_DIR", "MUZIK_MUSIC_DIR", "MUZIK_LIDARR_ENABLED", "MUZIK_LIDARR_URL",
+  "MUZIK_LIDARR_API_KEY", "MUZIK_LIDARR_ROOT_FOLDER", "MUZIK_LYRICS"];
+const ALBUM = {
+  title: "Album (Deluxe Edition)", foreignAlbumId: "album-mbid", albumType: "Album",
+  artist: { artistName: "Artist", foreignArtistId: "artist-mbid" },
+};
+const ROOT = { path: "/media/music", accessible: true, defaultQualityProfileId: 2, defaultMetadataProfileId: 3, defaultTags: [5] };
 
 async function fixture(t) {
   const previous = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
   for (const name of ENV_NAMES) delete process.env[name];
   const directory = await mkdtemp(join(tmpdir(), "muzik-lidarr-"));
-  const root = join(directory, "music");
   process.env.MUZIK_DATA_DIR = join(directory, "data");
-  process.env.MUZIK_TEMP_DIR = join(directory, "scratch");
-  process.env.MUZIK_MUSIC_DIR = root;
-  await mkdir(dirname(join(root, FILE)), { recursive: true });
+  process.env.MUZIK_MUSIC_DIR = join(directory, "music");
   await mkdir(process.env.MUZIK_DATA_DIR, { recursive: true });
-  await writeFile(join(root, FILE), "audio fixture");
   const state = {
-    requests: [], status: 200, commandStatuses: ["completed"],
-    artists: [{ id: 1 }], matched: [{ path: `/media/music/${FILE}`, artistId: 1, albumId: 10 }],
-    unmatched: [], roots: [{ path: "/media/music", accessible: true }], submission: { id: 42 },
-    delay: 0, redirect: false, block: null, trackDelay: 0, activeTracks: 0, maxActiveTracks: 0,
+    requests: [], status: 200, redirect: false, lookup: [ALBUM], existing: [],
+    roots: [{ path: "/other", accessible: true, defaultQualityProfileId: 9, defaultMetadataProfileId: 9 }, ROOT],
   };
   const server = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
-    state.requests.push({ method: request.method, url: request.url, key: request.headers["x-api-key"], body: body ? JSON.parse(body) : null });
-    if (state.block) await state.block;
-    if (state.delay) await sleep(state.delay);
+    const url = new URL(request.url, "http://localhost");
+    state.requests.push({ method: request.method, path: url.pathname, query: Object.fromEntries(url.searchParams),
+      key: request.headers["x-api-key"], body: body ? JSON.parse(body) : null });
     if (state.redirect) { response.writeHead(302, { Location: "/redirected" }).end(); return; }
     response.setHeader("Content-Type", "application/json");
     if (state.status !== 200) { response.writeHead(state.status).end(JSON.stringify({ error: "upstream secret" })); return; }
-    const path = new URL(request.url, "http://localhost").pathname.replace(/^\/base/, "");
-    let result = {};
-    if (path === "/api/v1/rootfolder") result = state.roots;
-    if (path === "/api/v1/command" && request.method === "POST") result = state.submission;
-    if (path === "/api/v1/command/42") {
-      result = { status: state.commandStatuses[0] };
-      if (state.commandStatuses.length > 1) state.commandStatuses.shift();
-    }
-    if (path === "/api/v1/artist") result = state.artists;
-    if (path === "/api/v1/trackfile") {
-      state.activeTracks += 1;
-      state.maxActiveTracks = Math.max(state.maxActiveTracks, state.activeTracks);
-      if (state.trackDelay) await sleep(state.trackDelay);
-      const query = new URL(request.url, "http://localhost").searchParams;
-      result = query.get("unmapped") === "true" ? state.unmatched : state.matched.filter((file) => file.artistId === Number(query.get("artistId")));
-      state.activeTracks -= 1;
-    }
-    response.end(JSON.stringify(result));
+    const route = `${request.method} ${url.pathname.replace(/^\/base/, "")}`;
+    const results = {
+      "GET /api/v1/system/status": {},
+      "GET /api/v1/rootfolder": state.roots,
+      "GET /api/v1/album/lookup": state.lookup,
+      "GET /api/v1/album": state.existing,
+      "POST /api/v1/album": { id: 7 },
+      "PUT /api/v1/album/monitor": [],
+      "POST /api/v1/command": { id: 42 },
+    };
+    if (!(route in results)) { response.writeHead(404).end("{}"); return; }
+    response.end(JSON.stringify(results[route]));
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const url = `http://127.0.0.1:${server.address().port}/base`;
-  const input = { enabled: true, url, apiKey: "private-key", musicDir: "/media/music" };
+  const input = { enabled: true, url, apiKey: "private-key", rootFolder: "/media/music/" };
   await saveLidarrSettings(input);
   t.after(async () => {
     server.closeAllConnections();
@@ -74,10 +63,7 @@ async function fixture(t) {
     }
     await rm(directory, { recursive: true, force: true });
   });
-  const job = upgradeJobs([{ id: ID, kind: "album", sourceId: "PLabcdefghijk", status: "completed",
-    title: "Album", subtitle: "Artist", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    downloadRoot: root, downloadedPaths: [FILE], downloadedItems: 1, scanWarning: "Navidrome warning" }])[0];
-  return { directory, root, state, server, input, job };
+  return { state, server, input };
 }
 
 test("Lidarr settings preserve secrets and other settings across serialized writes", async (t) => {
@@ -97,33 +83,32 @@ test("Lidarr settings preserve secrets and other settings across serialized writ
   assert.equal((await lidarrConnection()).url, input.url);
 });
 
-test("Lidarr defaults disabled and old jobs have no registration or paths", async (t) => {
-  await fixture(t);
-  await rm(join(process.env.MUZIK_DATA_DIR, "settings.json"));
-  const visible = await publicLidarrSettings();
+test("Lidarr defaults disabled and settings from the scan feature keep their connection", async (t) => {
+  const { input } = await fixture(t);
+  const file = join(process.env.MUZIK_DATA_DIR, "settings.json");
+  await rm(file);
+  let visible = await publicLidarrSettings();
   assert.equal(visible.enabled, false);
   assert.equal(visible.apiKeyConfigured, false);
-  const old = upgradeJobs([{ id: ID }])[0];
-  assert.deepEqual(old.downloadedPaths, []);
-  assert.equal(old.downloadRoot, null);
-  assert.equal(old.lidarr, null);
+  await writeFile(file, JSON.stringify({ musicDir: process.env.MUZIK_MUSIC_DIR,
+    lidarr: { enabled: true, url: input.url, apiKey: "private-key", musicDir: "/media/music" } }));
+  visible = await publicLidarrSettings();
+  assert.equal(visible.enabled, true);
+  assert.equal(visible.rootFolder, "");
+  assert.equal(visible.apiKeyConfigured, true);
+  await saveLidarrSettings({ ...input, apiKey: "" });
+  assert.equal("musicDir" in JSON.parse(await readFile(file, "utf8")).lidarr, false);
 });
 
-test("job upgrades reject malformed registration and drop unexpected nested properties", async (t) => {
-  const { job } = await fixture(t);
-  job.lidarr = { ...await pendingLidarr(job), obsoleteProperty: "discard" };
-  assert.equal("obsoleteProperty" in upgradeJobs([job])[0].lidarr, false);
-  for (const change of [{ status: "other" }, { commandId: "42" }, { startedAt: "invalid" }, { recognizedFiles: -1 }]) {
-    assert.equal(upgradeJobs([{ ...job, lidarr: { ...job.lidarr, ...change } }])[0].lidarr, null);
-  }
-});
-
-test("Lidarr validates URL, secrets, switches, and Linux roots", async (t) => {
+test("Lidarr validates URL, secrets, switches, and root folders", async (t) => {
   const { input } = await fixture(t);
   for (const url of ["file:///etc/passwd", "https://user:password@example.com", "http://example.com?a=1", "http://example.com#secret", "not a URL"]) {
     await assert.rejects(saveLidarrSettings({ ...input, url }), /Lidarr URL/);
   }
-  for (const musicDir of ["relative", "/", "C:\\music", "/music\0escape"]) await assert.rejects(saveLidarrSettings({ ...input, musicDir }));
+  for (const rootFolder of [42, "/music\0escape", "/music\nescape", "x".repeat(1001)]) {
+    await assert.rejects(saveLidarrSettings({ ...input, rootFolder }), /root folder/);
+  }
+  assert.equal((await saveLidarrSettings({ ...input, rootFolder: "  D:\\Music  " })).rootFolder, "D:\\Music");
   await assert.rejects(saveLidarrSettings({ ...input, enabled: "true" }), /enabled/);
   await assert.rejects(saveLidarrSettings({ ...input, apiKey: "x".repeat(4097) }), /too long/);
 });
@@ -132,12 +117,12 @@ test("environment overrides are pinned and cannot leak saved credentials to anot
   const { input } = await fixture(t);
   process.env.MUZIK_LIDARR_ENABLED = "0";
   process.env.MUZIK_LIDARR_URL = "http://other.example/base";
-  process.env.MUZIK_LIDARR_MUSIC_DIR = "/mapped";
+  process.env.MUZIK_LIDARR_ROOT_FOLDER = "/mapped";
   let visible = await publicLidarrSettings();
   assert.equal(visible.enabled, false);
   assert.equal(visible.enabledPinned, true);
   assert.equal(visible.urlPinned, true);
-  assert.equal(visible.musicDirPinned, true);
+  assert.equal(visible.rootFolderPinned, true);
   assert.equal(visible.apiKeyConfigured, false);
   assert.equal((await lidarrConnection()).apiKey, "");
   process.env.MUZIK_LIDARR_API_KEY = "environment-key";
@@ -146,7 +131,7 @@ test("environment overrides are pinned and cannot leak saved credentials to anot
   assert.equal(visible.apiKeyPinned, true);
   assert.equal((await lidarrConnection()).apiKey, "environment-key");
   assert.equal(visible.url, "http://other.example/base");
-  assert.equal(visible.musicDir, "/mapped");
+  assert.equal(visible.rootFolder, "/mapped");
   const stored = JSON.parse(await readFile(join(process.env.MUZIK_DATA_DIR, "settings.json"), "utf8"));
   assert.equal(stored.lidarr.apiKey, "", "saving a server override cannot rebind the previous server's secret");
   delete process.env.MUZIK_LIDARR_URL;
@@ -171,267 +156,106 @@ test("malformed settings errors never quote saved credentials", async (t) => {
   await assert.rejects(saveLidarrSettings(input), { message: "Settings file is invalid. Check settings.json." });
 });
 
-test("connection test handles unsaved values and base paths without saving or disclosing keys", async (t) => {
+test("connection test uses unsaved values and base paths, and requires a usable root folder", async (t) => {
   const { input, state } = await fixture(t);
   const before = await readFile(join(process.env.MUZIK_DATA_DIR, "settings.json"), "utf8");
   const connection = await lidarrTestConnection({ ...input, enabled: false, apiKey: "draft-key" });
   const result = await testLidarrConnection(connection);
-  assert.equal(result.lidarrRoot, "/media/music");
+  assert.equal(result.rootFolder, "/media/music");
   assert.equal(JSON.stringify(result).includes("draft-key"), false);
-  assert.ok(state.requests.every((request) => request.url.startsWith("/base/api/v1/") && request.key === "draft-key"));
+  assert.ok(state.requests.every((request) => request.path.startsWith("/base/api/v1/") && request.key === "draft-key"));
   assert.equal(await readFile(join(process.env.MUZIK_DATA_DIR, "settings.json"), "utf8"), before);
-  state.roots = [{ path: "/media/music-other", accessible: true }];
-  await assert.rejects(testLidarrConnection(connection), /accessible Lidarr root/);
-  state.roots = [{ path: "/media", accessible: false }];
-  await assert.rejects(testLidarrConnection(connection), /accessible Lidarr root/);
-});
-
-test("maps paths safely with same and different roots", () => {
-  assert.equal(mapLidarrPath("/music", "/media/music", FILE), `/media/music/${FILE}`);
-  assert.equal(mapLidarrPath("/music", "/music", FILE), `/music/${FILE}`);
-  for (const path of ["", ".", "../escape", "Artist/../../escape", "/music/track.m4a", "Artist/\0song"]) {
-    assert.throws(() => mapLidarrPath("/music", "/media/music", path), /outside/);
+  assert.equal((await testLidarrConnection({ ...connection, rootFolder: "" })).rootFolder, "/other");
+  for (const roots of [[{ ...ROOT, accessible: false }], [{ ...ROOT, defaultQualityProfileId: 0 }], [{ ...ROOT, path: "/media" }], {}]) {
+    state.roots = roots;
+    await assert.rejects(testLidarrConnection(connection), /root folder/);
   }
 });
 
-test("registration preserves the download, submits an in-place scan, and confirms recognition", async (t) => {
-  const { job, state } = await fixture(t);
-  job.lidarr = await pendingLidarr(job);
-  const snapshots = [];
-  await registerLidarr(job, async () => snapshots.push(structuredClone(job.lidarr)));
-  const submission = state.requests.find((request) => request.method === "POST");
-  assert.deepEqual(submission.body, { name: "RescanFolders", folders: ["/media/music/Artist/Album"], filter: "none", addNewArtists: false });
-  assert.equal(submission.key, "private-key");
-  assert.equal(snapshots[0].status, "scanning");
-  assert.equal(snapshots[0].commandId, null);
-  assert.equal(job.lidarr.status, "recognized");
-  assert.equal(job.lidarr.recognizedFiles, 1);
-  assert.match(job.lidarr.message, /1 of 1/);
-  assert.equal(job.status, "completed");
-  assert.equal(job.scanWarning, "Navidrome warning");
-  assert.ok(state.requests.every((request) => !request.url.includes("private-key")));
+test("album matching ignores case, accents, punctuation, and editions, and accepts any credited artist", () => {
+  const results = [
+    { ...ALBUM, title: "Other Album" },
+    { ...ALBUM, foreignAlbumId: "" },
+    "invalid",
+    { ...ALBUM, title: "Café: Nights [Remastered]", artist: { artistName: "Beyoncé", foreignArtistId: "b" } },
+  ];
+  assert.equal(matchAlbum(results, "Beyonce & Jay-Z", "CAFE NIGHTS").foreignAlbumId, "album-mbid");
+  assert.equal(matchAlbum(results, "Beyonce feat. Jay-Z", "Cafe Nights (Deluxe)").artist.artistName, "Beyoncé");
+  assert.equal(matchAlbum(results, "Someone Else", "Cafe Nights"), null);
+  assert.equal(matchAlbum(results, "Beyonce", "Cafe"), null);
+  assert.equal(matchAlbum(results, "Beyonce", "(Deluxe)"), null);
+  assert.throws(() => matchAlbum({}, "Artist", "Album"), /invalid album search/);
 });
 
-test("mixed playlists report unmatched and unreported files, with unique album folders", async (t) => {
-  const { job, root, state } = await fixture(t);
-  job.kind = "playlist";
-  job.status = "completed_with_warnings";
-  job.downloadedPaths.push("Artist/Album/02.m4a", "Unknown/Collection/03.m4a");
-  for (const path of job.downloadedPaths.slice(1)) {
-    await mkdir(dirname(join(root, path)), { recursive: true });
-    await writeFile(join(root, path), "audio");
-  }
-  state.unmatched = [{ path: "/media/music/Artist/Album/02.m4a", artistId: 0, albumId: 0 }];
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.match(job.lidarr.message, /1 of 3/);
-  assert.equal(job.status, "completed_with_warnings");
-  assert.deepEqual(state.requests.find((request) => request.method === "POST").body.folders,
-    ["/media/music/Artist/Album", "/media/music/Unknown/Collection"]);
+test("a new album is added monitored with a search, using the root folder's defaults", async (t) => {
+  const { state } = await fixture(t);
+  const result = await requestLidarrAlbum("Artist", "Album");
+  assert.equal(result.added, true);
+  assert.match(result.message, /Added Album \(Deluxe Edition\) by Artist/);
+  const lookup = state.requests.find((request) => request.path === "/base/api/v1/album/lookup");
+  assert.equal(lookup.query.term, "Artist Album");
+  assert.equal(state.requests.find((request) => request.path === "/base/api/v1/album" && request.method === "GET").query.foreignAlbumId, "album-mbid");
+  const added = state.requests.find((request) => request.method === "POST" && request.path === "/base/api/v1/album").body;
+  assert.equal(added.foreignAlbumId, "album-mbid");
+  assert.equal(added.monitored, true);
+  assert.deepEqual(added.addOptions, { searchForNewAlbum: true });
+  assert.equal(added.artist.foreignArtistId, "artist-mbid");
+  assert.equal(added.artist.rootFolderPath, "/media/music");
+  assert.equal(added.artist.qualityProfileId, 2);
+  assert.equal(added.artist.metadataProfileId, 3);
+  assert.deepEqual(added.artist.tags, [5]);
+  assert.equal(added.artist.monitorNewItems, "none");
+  assert.deepEqual(added.artist.addOptions, { monitor: "none", searchForMissingAlbums: false });
+  assert.ok(state.requests.every((request) => request.key === "private-key"));
+  assert.equal(state.requests.some((request) => request.path === "/base/api/v1/command"), false);
 });
 
-test("recognition queries at most four artists concurrently and stops when all files are found", async (t) => {
-  const { job, state } = await fixture(t);
-  state.artists = Array.from({ length: 12 }, (_, index) => ({ id: index + 1 }));
-  state.matched[0].artistId = 5;
-  state.trackDelay = 20;
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "recognized");
-  assert.equal(state.maxActiveTracks, 4);
-  assert.equal(state.requests.filter((request) => request.url.includes("artistId=")).length, 8);
+test("an album already in Lidarr is monitored and searched instead of added again", async (t) => {
+  const { state } = await fixture(t);
+  state.existing = [{ id: 11, monitored: false }];
+  const result = await requestLidarrAlbum("Artist", "Album");
+  assert.equal(result.added, false);
+  assert.match(result.message, /already in Lidarr/);
+  assert.deepEqual(state.requests.find((request) => request.method === "PUT").body, { albumIds: [11], monitored: true });
+  assert.deepEqual(state.requests.find((request) => request.path === "/base/api/v1/command").body, { name: "AlbumSearch", albumIds: [11] });
+  assert.equal(state.requests.some((request) => request.method === "POST" && request.path === "/base/api/v1/album"), false);
 });
 
-test("all-unmatched scans report counts without querying unrelated artists", async (t) => {
-  const { job, state } = await fixture(t);
-  state.unmatched = [{ path: `/media/music/${FILE}`, artistId: 0, albumId: 0 }];
-  state.artists = null;
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.match(job.lidarr.message, /0 of 1/);
-  assert.equal(state.requests.some((request) => request.url.endsWith("/artist")), false);
-});
-
-test("malformed scan commands and track records never produce recognition success", async (t) => {
-  const { job, state } = await fixture(t);
-  for (const submission of [{}, { id: "42" }, { id: -1 }]) {
-    state.submission = submission;
-    job.lidarr = await pendingLidarr(job);
-    await registerLidarr(job, async () => {});
-    assert.equal(job.lidarr.status, "warning");
-    assert.match(job.lidarr.message, /valid scan command/);
-  }
-  state.submission = { id: 42 };
-  state.matched[0].albumId = "10";
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.match(job.lidarr.message, /invalid track-file/);
-});
-
-test("missing files and symlinks outside the music root never reach Lidarr", async (t) => {
-  const { job, directory, root, state } = await fixture(t);
-  await rm(join(root, FILE));
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.match(job.lidarr.message, /missing or outside/);
-  assert.equal(state.requests.length, 0);
-  await writeFile(join(directory, "outside.m4a"), "audio");
-  await symlink(join(directory, "outside.m4a"), join(root, FILE));
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
+test("unmatched albums, disabled requests, and unusable roots never add anything", async (t) => {
+  const { state, input } = await fixture(t);
+  state.lookup = [{ ...ALBUM, artist: { artistName: "Cover Band", foreignArtistId: "c" } }];
+  await assert.rejects(requestLidarrAlbum("Artist", "Album"), /found no album named "Album" by Artist/);
+  state.lookup = [ALBUM];
+  state.roots = [{ ...ROOT, accessible: false }];
+  await assert.rejects(requestLidarrAlbum("Artist", "Album"), /root folder/);
+  assert.equal(state.requests.some((request) => request.method !== "GET"), false);
+  state.requests = [];
+  await saveLidarrSettings({ ...input, apiKey: "", enabled: false });
+  await assert.rejects(requestLidarrAlbum("Artist", "Album"), /Enable Lidarr/);
   assert.equal(state.requests.length, 0);
 });
 
-test("authentication errors and redirects are sanitized and do not fail downloads", async (t) => {
-  const { job, state } = await fixture(t);
+test("upstream errors, offline servers, and redirects are sanitized", async (t) => {
+  const { state, server } = await fixture(t);
   for (const status of [401, 403, 500]) {
     state.status = status;
-    job.lidarr = await pendingLidarr(job);
-    await registerLidarr(job, async () => {});
-    assert.equal(job.lidarr.status, "warning");
-    assert.match(job.lidarr.message, new RegExp(`HTTP ${status}`));
-    assert.equal(job.lidarr.message.includes("upstream secret"), false);
-    assert.equal(job.status, "completed");
+    await assert.rejects(requestLidarrAlbum("Artist", "Album"), (error) =>
+      error.message.includes(`HTTP ${status}`) && !error.message.includes("upstream secret"));
   }
   state.status = 200;
   state.redirect = true;
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.equal(state.requests.some((request) => request.url === "/redirected"), false);
-});
-
-test("offline Lidarr becomes a warning", async (t) => {
-  const { job, server } = await fixture(t);
+  await assert.rejects(requestLidarrAlbum("Artist", "Album"), /could not be reached/);
+  assert.equal(state.requests.some((request) => request.path === "/redirected"), false);
+  server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "warning");
-  assert.match(job.lidarr.message, /could not be reached/);
-  assert.equal(job.status, "completed");
+  await assert.rejects(requestLidarrAlbum("Artist", "Album"), /could not be reached/);
 });
 
-test("polling waits for completion and rejects failed commands", async (t) => {
-  const { job, state } = await fixture(t);
-  state.commandStatuses = ["queued", "completed"];
-  job.lidarr = await pendingLidarr(job);
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "recognized");
-  for (const status of ["failed", "aborted", "cancelled", "orphaned"]) {
-    state.commandStatuses = [status];
-    job.lidarr = await pendingLidarr(job);
-    await registerLidarr(job, async () => {});
-    assert.equal(job.lidarr.status, "warning");
-    assert.match(job.lidarr.message, /failed or stopped/);
+test("request validation requires a real artist and album", () => {
+  assert.deepEqual(validateLidarrRequest({ artist: " Artist ", album: "Album" }), { artist: "Artist", album: "Album" });
+  for (const body of [null, {}, { artist: "Artist" }, { artist: "Artist", album: "" }, { artist: "x".repeat(301), album: "Album" }]) {
+    assert.throws(() => validateLidarrRequest(body));
   }
-});
-
-test("restart resumes a known command and does not resubmit uncertain or expired scans", async (t) => {
-  const { job, state } = await fixture(t);
-  job.lidarr = { ...await pendingLidarr(job), status: "scanning", commandId: 42, startedAt: new Date().toISOString() };
-  await registerLidarr(job, async () => {});
-  assert.equal(job.lidarr.status, "recognized");
-  assert.equal(state.requests.some((request) => request.method === "POST"), false);
-  job.lidarr = { ...await pendingLidarr(job), status: "scanning", startedAt: new Date().toISOString() };
-  await registerLidarr(job, async () => {});
-  assert.match(job.lidarr.message, /interrupted/);
-  job.lidarr = { ...await pendingLidarr(job), status: "scanning", commandId: 42, startedAt: "2020-01-01T00:00:00.000Z" };
-  await registerLidarr(job, async () => {});
-  assert.match(job.lidarr.message, /timed out/);
-  assert.equal(state.requests.some((request) => request.method === "POST"), false);
-});
-
-test("changed settings require manual retry instead of scanning another server or root", async (t) => {
-  const { job, input, state } = await fixture(t);
-  for (const change of [{ musicDir: "/other" }, { url: "http://other.example", apiKey: "another-key" }, { enabled: false }]) {
-    await saveLidarrSettings(input);
-    job.lidarr = await pendingLidarr(job);
-    await saveLidarrSettings({ ...input, ...change });
-    await registerLidarr(job, async () => {});
-    assert.match(job.lidarr.message, /settings changed/);
-  }
-  assert.equal(state.requests.length, 0);
-});
-
-async function settle(store) {
-  for (let attempt = 0; attempt < 150; attempt += 1) {
-    const jobs = await store.list();
-    if (!jobs.some((job) => ["pending", "scanning"].includes(job.lidarr?.status))) return jobs;
-    await sleep(20);
-  }
-  assert.fail("Lidarr worker did not settle");
-}
-
-test("manual retry changes registration only, prevents duplicates, and survives clear-finished", async (t) => {
-  const { job, state } = await fixture(t);
-  job.lidarr = { ...await pendingLidarr(job), status: "warning" };
-  await writeFile(join(process.env.MUZIK_DATA_DIR, "jobs.json"), JSON.stringify([job]));
-  const store = new JobStore();
-  const retry = await Promise.allSettled([store.retryLidarr(ID), store.retryLidarr(ID)]);
-  assert.equal(retry.filter((result) => result.status === "fulfilled").length, 1);
-  assert.match(retry.find((result) => result.status === "rejected").reason.message, /already in progress/);
-  assert.equal((await store.clearFinished()).length, 1);
-  const [completed] = await settle(store);
-  assert.equal(completed.lidarr.status, "recognized");
-  assert.equal(completed.status, "completed");
-  assert.equal(completed.scanWarning, "Navidrome warning");
-  assert.equal(state.requests.filter((request) => request.method === "POST").length, 1);
-});
-
-test("persisted pending scans resume in the JobStore independently of queued downloads", async (t) => {
-  const { job, state } = await fixture(t);
-  job.lidarr = await pendingLidarr(job);
-  const queued = upgradeJobs([{ id: "22222222-2222-2222-2222-222222222222", status: "queued", kind: "song", sourceId: "abcdefghijk" }])[0];
-  await writeFile(join(process.env.MUZIK_DATA_DIR, "jobs.json"), JSON.stringify([job, queued]));
-  const store = new JobStore();
-  const downloads = [];
-  store.download = async (current) => { downloads.push(current.id); current.status = "completed"; };
-  const jobs = await settle(store);
-  assert.equal(jobs.find((current) => current.id === ID).lidarr.status, "recognized");
-  assert.deepEqual(downloads, [queued.id]);
-  assert.equal(state.requests.filter((request) => request.method === "POST").length, 1);
-});
-
-test("the download pipeline automatically registers successful files from a partial playlist", async (t) => {
-  const { job, root, directory, state } = await fixture(t);
-  const downloader = join(directory, "downloader.mjs");
-  await writeFile(downloader, `#!/usr/bin/env node\nconsole.log(${JSON.stringify(`muzik-file:${join(root, FILE)}`)});\nconsole.error('ERROR: A playlist item is unavailable');\nprocess.exitCode = 1;\n`, { mode: 0o700 });
-  process.env.MUZIK_YTDLP = downloader;
-  process.env.MUZIK_MIN_FREE_MB = "0";
-  process.env.MUZIK_LYRICS = "0";
-  Object.assign(job, { kind: "playlist", status: "queued", downloadedItems: 0, downloadedPaths: [], downloadRoot: null, lidarr: null, scanWarning: null });
-  await writeFile(join(process.env.MUZIK_DATA_DIR, "jobs.json"), JSON.stringify([job]));
-  const store = new JobStore();
-  await store.list();
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const [current] = await store.list();
-    if (current.lidarr?.status === "recognized") {
-      assert.equal(current.status, "completed_with_warnings");
-      assert.equal(current.warningCount, 1);
-      assert.deepEqual(current.downloadedPaths, [FILE]);
-      assert.equal(current.downloadRoot, root);
-      assert.equal(state.requests.filter((request) => request.method === "POST").length, 1);
-      return;
-    }
-    await sleep(25);
-  }
-  assert.fail("Partial playlist was not registered");
-});
-
-test("Lidarr request timeout yields a warning without retrying", async (t) => {
-  const { job, state } = await fixture(t);
-  let release;
-  state.block = new Promise((resolve) => { release = resolve; });
-  t.after(() => release());
-  job.lidarr = await pendingLidarr(job);
-  try {
-    await registerLidarr(job, async () => {});
-    assert.equal(job.lidarr.status, "warning");
-    assert.match(job.lidarr.message, /could not be reached/);
-    assert.equal(state.requests.length, 1);
-  } finally { release(); }
+  assert.throws(() => validateLidarrRequest({ artist: "Unknown artist", album: "Album" }), /no album and artist/);
+  assert.throws(() => validateLidarrRequest({ artist: "Artist", album: "Unknown album" }), /no album and artist/);
 });

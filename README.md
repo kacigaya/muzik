@@ -44,7 +44,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Album artist, album year, and one broad MusicBrainz genre normalized from the files themselves
 - Synced lyrics written next to each track as `.lrc`, on by default and switchable in settings
 - Optional Navidrome links and a scan trigger after each download
-- Optional Lidarr registration with file recognition feedback and manual retry
+- Optional Lidarr requests: send an album to Lidarr to monitor and download
 - Optional routing of all downloads through a VPN container
 - Installable as a PWA, with `/` and `⌘K` shortcuts and light and dark themes
 
@@ -91,20 +91,16 @@ The site source is in [`web/`](web).
 ### Lidarr
 
 Enable Lidarr in Muzik's Settings and enter its server URL and API key from
-Lidarr **Settings > General**. Use **Test connection** before saving. Both apps must
-have access to the same music files, within a root folder configured in Lidarr.
-If Muzik sees the shared folder as `/music` and Lidarr sees it as `/media/music`,
-set **Music root inside Lidarr** to `/media/music`; otherwise leave it blank.
+Lidarr **Settings > General**. Use **Test connection** before saving.
 
-Muzik scans finished songs, albums, and playlists in place, adds no new artists,
-and reports how many files Lidarr matched. Add artists in Lidarr first. Singles,
-playlist collections, incomplete albums, and releases Lidarr cannot identify may
-remain unmatched. Lidarr can update tags according to its own settings.
-
-Lidarr errors leave downloads successful. **Retry Lidarr** repeats registration
-without downloading again. Existing downloads from before this feature have no
-saved file paths and are not registered automatically. Environment overrides are
-listed in the [configuration reference](https://kacigaya.github.io/muzik/docs/reference/configuration/).
+Songs and albums in search results then show **Request in Lidarr**. Muzik finds the
+matching album in Lidarr, adds it as monitored, and starts a search. Lidarr downloads
+and imports it with its own indexers and download clients. A song requests its album.
+New artists go into Lidarr's first root folder, or the one set in
+**Root folder for new artists**, with that folder's default profiles and no other
+albums monitored. Albums Lidarr already has are monitored and searched again.
+Environment overrides are listed in the
+[configuration reference](https://kacigaya.github.io/muzik/docs/reference/configuration/).
 
 ## Development
 
