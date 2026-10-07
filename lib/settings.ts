@@ -12,7 +12,16 @@ type StoredNavidromeSettings = {
   username: string;
   password: string;
 };
-export type Settings = { musicDir: string; navidrome?: StoredNavidromeSettings; lyrics?: boolean };
+type StoredLidarrSettings = { enabled: boolean; url: string; apiKey: string; musicDir: string };
+export type PublicLidarrSettings = Omit<StoredLidarrSettings, "apiKey"> & {
+  apiKeyConfigured: boolean;
+  enabledPinned: boolean;
+  urlPinned: boolean;
+  apiKeyPinned: boolean;
+  musicDirPinned: boolean;
+  configurationError: string | null;
+};
+export type Settings = { musicDir: string; navidrome?: StoredNavidromeSettings; lidarr?: StoredLidarrSettings; lyrics?: boolean };
 export type PublicNavidromeSettings = {
   url: string;
   authMode: NavidromeAuthMode;
@@ -56,9 +65,14 @@ async function load(): Promise<Settings | null> {
     return {
       musicDir: parsed.musicDir,
       ...(navidrome && { navidrome }),
+      ...(parsed.lidarr && typeof parsed.lidarr.enabled === "boolean"
+        && typeof parsed.lidarr.url === "string" && typeof parsed.lidarr.apiKey === "string"
+        && typeof parsed.lidarr.musicDir === "string" && { lidarr: parsed.lidarr }),
       ...(typeof parsed.lyrics === "boolean" && { lyrics: parsed.lyrics }),
     };
   } catch (cause) {
+    // JSON parse errors can quote the source, including saved credentials.
+    if (cause instanceof SyntaxError) throw new Error("Settings file is invalid. Check settings.json.");
     if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
     return null;
   }
@@ -81,14 +95,14 @@ function serializeSave<T>(operation: () => Promise<T>) {
   return run;
 }
 
-function cleanNavidromeUrl(value: unknown) {
-  if (typeof value !== "string") throw new Error("Navidrome URL is required.");
+function cleanServerUrl(value: unknown, label = "Navidrome") {
+  if (typeof value !== "string") throw new Error(`${label} URL is required.`);
   const candidate = value.trim();
-  if (!candidate) throw new Error("Navidrome URL is required.");
+  if (!candidate) throw new Error(`${label} URL is required.`);
   let url: URL;
-  try { url = new URL(candidate); } catch { throw new Error("Navidrome URL is invalid."); }
+  try { url = new URL(candidate); } catch { throw new Error(`${label} URL is invalid.`); }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-    throw new Error("Navidrome URL must be an HTTP or HTTPS address without credentials, query, or fragment.");
+    throw new Error(`${label} URL must be an HTTP or HTTPS address without credentials, query, or fragment.`);
   }
   return url.href.replace(/\/$/, "");
 }
@@ -117,7 +131,7 @@ function environmentNavidromeUrl() {
   const candidate = process.env.NAVIDROME_URL?.trim();
   if (!candidate) return "";
   try {
-    return cleanNavidromeUrl(candidate);
+    return cleanServerUrl(candidate);
   } catch {
     return "";
   }
@@ -161,7 +175,7 @@ export async function saveNavidromeSettings(value: unknown) {
     const urlPinned = Boolean(environmentNavidromeUrl());
     const authPinned = Boolean(process.env.MUZIK_NAVIDROME_API_KEY
       || (process.env.MUZIK_NAVIDROME_USERNAME && process.env.MUZIK_NAVIDROME_PASSWORD));
-    const url = urlPinned ? current?.url ?? "" : cleanNavidromeUrl(input.url);
+    const url = urlPinned ? current?.url ?? "" : cleanServerUrl(input.url);
     if (authPinned && !urlPinned && url !== (current?.url ?? "")) {
       throw new Error("Set NAVIDROME_URL with environment-managed credentials.");
     }
@@ -213,6 +227,80 @@ export async function saveLyricsEnabled(value: unknown) {
     settings.lyrics = value;
     await save(settings);
     return lyricsSettings();
+  });
+}
+
+function lidarrPins() {
+  return {
+    enabledPinned: Boolean(process.env.MUZIK_LIDARR_ENABLED?.trim()),
+    urlPinned: Boolean(process.env.MUZIK_LIDARR_URL?.trim()),
+    apiKeyPinned: Boolean(process.env.MUZIK_LIDARR_API_KEY),
+    musicDirPinned: Boolean(process.env.MUZIK_LIDARR_MUSIC_DIR?.trim()),
+  };
+}
+
+function effectiveLidarr(stored?: StoredLidarrSettings): StoredLidarrSettings {
+  const pins = lidarrPins();
+  const url = pins.urlPinned ? cleanServerUrl(process.env.MUZIK_LIDARR_URL, "Lidarr") : stored?.url ?? "";
+  const musicDir = pins.musicDirPinned ? process.env.MUZIK_LIDARR_MUSIC_DIR : stored?.musicDir;
+  return {
+    enabled: pins.enabledPinned ? /^(1|true|yes|on)$/i.test(process.env.MUZIK_LIDARR_ENABLED!.trim()) : stored?.enabled ?? false,
+    url: url ? cleanServerUrl(url, "Lidarr") : "",
+    // A server override must never receive another server's saved credentials.
+    apiKey: process.env.MUZIK_LIDARR_API_KEY || (url === stored?.url ? stored.apiKey : ""),
+    musicDir: musicDir ? validateMusicDir(musicDir) : "",
+  };
+}
+
+export async function lidarrConnection() {
+  return effectiveLidarr((await load())?.lidarr);
+}
+
+export async function publicLidarrSettings(): Promise<PublicLidarrSettings> {
+  try {
+    const { apiKey, ...settings } = await lidarrConnection();
+    return { ...settings, apiKeyConfigured: Boolean(apiKey), ...lidarrPins(), configurationError: null };
+  } catch (cause) {
+    return {
+      enabled: false, url: "", musicDir: "", apiKeyConfigured: false, ...lidarrPins(),
+      configurationError: cause instanceof Error ? cause.message : "Lidarr configuration is invalid.",
+    };
+  }
+}
+
+function prepareLidarr(value: unknown, current?: StoredLidarrSettings): StoredLidarrSettings {
+  if (!value || typeof value !== "object") throw new Error("Lidarr settings are invalid.");
+  const input = value as Record<string, unknown>;
+  const pins = lidarrPins();
+  if (!pins.enabledPinned && typeof input.enabled !== "boolean") throw new Error("Lidarr enabled setting is invalid.");
+  const enabled = pins.enabledPinned ? effectiveLidarr(current).enabled : input.enabled === true;
+  const url = pins.urlPinned ? cleanServerUrl(process.env.MUZIK_LIDARR_URL, "Lidarr")
+    : input.url === "" && !enabled ? "" : cleanServerUrl(input.url, "Lidarr");
+  if (pins.apiKeyPinned && !pins.urlPinned && url !== (current?.url ?? "")) {
+    throw new Error("Set MUZIK_LIDARR_URL with environment-managed credentials.");
+  }
+  const supplied = pins.apiKeyPinned ? "" : cleanSecret(input.apiKey, "Lidarr API key");
+  const savedKey = url === current?.url ? current.apiKey : "";
+  const apiKey = pins.apiKeyPinned ? savedKey : supplied || savedKey;
+  if (url && !apiKey && !pins.apiKeyPinned) throw new Error("Lidarr API key is required. Supply a new key when changing servers.");
+  const musicDirValue = pins.musicDirPinned ? process.env.MUZIK_LIDARR_MUSIC_DIR : input.musicDir;
+  if (typeof musicDirValue !== "string") throw new Error("Lidarr music root is invalid.");
+  const musicDir = musicDirValue.trim() ? validateMusicDir(musicDirValue) : "";
+  return { enabled, url, apiKey, musicDir };
+}
+
+/** Validate unsaved form values for connection testing without persisting or returning a key. */
+export async function lidarrTestConnection(value: unknown) {
+  return effectiveLidarr(prepareLidarr(value, (await load())?.lidarr));
+}
+
+export async function saveLidarrSettings(value: unknown) {
+  return serializeSave(async () => {
+    const settings = await load() ?? { musicDir: fromEnvironment() };
+    if (!settings.musicDir) throw new Error("Choose a music folder before configuring Lidarr.");
+    settings.lidarr = prepareLidarr(value, settings.lidarr);
+    await save(settings);
+    return publicLidarrSettings();
   });
 }
 

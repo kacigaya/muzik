@@ -34,6 +34,17 @@ export type JobStatus =
   | "failed"
   | "cancelled";
 
+export type LidarrRegistration = {
+  status: "pending" | "scanning" | "recognized" | "warning";
+  commandId: number | null;
+  serverUrl: string;
+  musicRoot: string;
+  lidarrRoot: string;
+  startedAt: string | null;
+  recognizedFiles: number;
+  message: string;
+};
+
 export type DownloadJob = {
   id: string;
   kind: SearchKind;
@@ -58,6 +69,9 @@ export type DownloadJob = {
   error: string | null;
   metadataWarning: string | null;
   scanWarning: string | null;
+  downloadedPaths: string[];
+  downloadRoot: string | null;
+  lidarr: LidarrRegistration | null;
   createdAt: string;
   updatedAt: string;
 };

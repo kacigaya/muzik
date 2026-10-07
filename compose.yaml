@@ -9,6 +9,11 @@ services:
     environment:
       # Optional. Adds links from finished downloads into your library.
       # NAVIDROME_URL: https://music.example.com
+      # Optional Lidarr registration. Both apps must share the music files.
+      # MUZIK_LIDARR_ENABLED: "1"
+      # MUZIK_LIDARR_URL: http://lidarr:8686
+      # MUZIK_LIDARR_API_KEY: ${LIDARR_API_KEY}
+      # MUZIK_LIDARR_MUSIC_DIR: /media/music
       TZ: UTC
     restart: unless-stopped
 
