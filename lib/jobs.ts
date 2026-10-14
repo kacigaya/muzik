@@ -34,12 +34,8 @@ export function formatSelector(format: AudioFormat) {
   return format === "m4a" ? "bestaudio[ext=m4a]/bestaudio/best" : "bestaudio/best";
 }
 
-/**
- * Fields added after the first release are backfilled so an old jobs.json still loads.
- * Values are re-checked rather than trusted: they end up as yt-dlp arguments, and the
- * file can be edited by hand. Only current fields survive, so retired source counters
- * are not returned to clients or written back to disk.
- */
+// Backfill older jobs.json files and discard retired fields before returning or saving them.
+// Revalidate yt-dlp options because the file can be edited by hand.
 export function upgradeJobs(jobs: DownloadJob[]) {
   return jobs.map((job) => ({
     id: job.id,
@@ -118,17 +114,12 @@ export class JobStore {
   private readonly tempDir = process.env.MUZIK_TEMP_DIR ?? "/srv/muzik/tmp";
   private readonly ytDlp = process.env.MUZIK_YTDLP ?? `${process.cwd()}/.venv/bin/yt-dlp`;
   private readonly containerCli = process.env.MUZIK_CONTAINER_CLI ?? "podman";
-  // Both are opt-in: without a VPN container yt-dlp uses the host network, and without a
-  // Navidrome container the library picks new files up on its own next scan.
+  // Without these overrides, yt-dlp uses the host network and Navidrome scans on its own schedule.
   private readonly vpnContainer = process.env.MUZIK_VPN_CONTAINER ?? "";
   private readonly navidromeContainer = process.env.MUZIK_NAVIDROME_CONTAINER ?? "";
 
-  /**
-   * Concurrent first requests share one read. A second read would replace the array the
-   * worker is already mutating and turn its running job back into a queued copy. Only the
-   * caller that triggered the read writes the upgraded queue back, so a failed write is
-   * reported once and the queue keeps working in memory, as it does for any other write.
-   */
+  // Share the initial read so concurrent callers cannot overwrite live worker state.
+  // Only the initiating caller persists the upgrade; failed writes leave the queue in memory.
   private load() {
     if (this.loading) return this.loading;
     this.loading = this.readJobs().catch((cause: unknown) => {
@@ -160,8 +151,7 @@ export class JobStore {
       await writeFile(temporary, payload, { mode: 0o600 });
       await rename(temporary, target);
     });
-    // The failure belongs to this caller only. Chaining on a rejected write would make
-    // every later write reject too, until the process restarts.
+    // Report this failure to its caller without poisoning later writes.
     this.persistChain = write.catch(() => {});
     await write;
     for (const listener of this.listeners) listener();
@@ -276,8 +266,7 @@ export class JobStore {
         try {
           await this.download(job);
         } catch {
-          // A job left queued would be picked again on the very next iteration, so the
-          // status has to move even when the throw came before download() marked it running.
+          // Fail even jobs that never reached "running" so the worker cannot pick them forever.
           if (canCancel(job)) {
             job.status = "failed";
             job.error = "Download stopped unexpectedly. Check service logs for details.";
@@ -292,11 +281,7 @@ export class JobStore {
     }
   }
 
-  /**
-   * yt-dlp fails deep into a playlist when the disk fills, so refuse before starting.
-   * The scratch directory is checked as well: it often sits on a different filesystem
-   * from the library, and every download passes through it first.
-   */
+  // Check library and scratch space before downloading; they may be on separate filesystems.
   private async freeSpaceShortage(musicRoot: string) {
     const minimumMb = Number(process.env.MUZIK_MIN_FREE_MB ?? 500);
     if (!Number.isFinite(minimumMb) || minimumMb <= 0) return null;
@@ -390,13 +375,8 @@ export class JobStore {
     timer.unref();
   }
 
-  /**
-   * Best effort by design: this runs after the download is already on disk, so a leftover
-   * scratch directory is a far smaller problem than losing the result over it. The sudo
-   * fallback still covers host installs where the scratch root is owned by another user,
-   * and simply fails on images that ship without sudo. The next run of the same job id
-   * overwrites the directory anyway.
-   */
+  // Cleanup must not fail a completed download; retries overwrite the same scratch directory.
+  // sudo handles roots owned by another user when available.
   private async discardScratch(jobId: string) {
     const scratch = join(this.tempDir, jobId);
     try {

@@ -10,10 +10,7 @@ export interface Disc3IconHandle {
   stopAnimation: () => void;
 }
 
-/**
- * From lucide-animated.com, trimmed the same way as {@link ./settings.tsx}. Buttons that
- * carry a label are wider than the glyph, so they drive the animation through the handle.
- */
+// Adapted from lucide-animated.com; the handle lets the whole button drive hover animation.
 export function Disc3Icon({
   className,
   onMouseEnter,

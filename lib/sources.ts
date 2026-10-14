@@ -1,8 +1,4 @@
-/**
- * Sources yt-dlp resolves directly. Kept apart from link parsing and validation so both
- * can share one allowlist: a job's URL reaches yt-dlp, so anything not listed here would
- * turn the queue into a request forwarder.
- */
+// Link parsing and validation share this allowlist to prevent arbitrary yt-dlp requests.
 export const EXTERNAL_HOSTS = new Set(["soundcloud.com", "m.soundcloud.com", "on.soundcloud.com"]);
 export const EXTERNAL_SUFFIXES = [".bandcamp.com"];
 

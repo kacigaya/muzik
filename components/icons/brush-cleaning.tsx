@@ -10,10 +10,7 @@ export interface BrushCleaningIconHandle {
   stopAnimation: () => void;
 }
 
-/**
- * From lucide-animated.com, trimmed the same way as {@link ./disc-3.tsx}. Icon-only buttons are
- * padded wider than the glyph, so hover is driven through the handle.
- */
+// Adapted from lucide-animated.com; the handle lets the padded button drive hover animation.
 export function BrushCleaningIcon({
   className,
   onMouseEnter,

@@ -20,10 +20,7 @@ interface HastNode {
   children?: HastNode[];
 }
 
-/**
- * The configuration table is wider than a phone. Wrap every table so it scrolls inside
- * its own box instead of stretching the page.
- */
+/** Contain wide tables in their own scroll area so they do not stretch the page on phones. */
 function rehypeScrollableTables() {
   return (tree: HastNode) => {
     const walk = (node: HastNode) => {
@@ -66,10 +63,7 @@ function containsLink(node: HastNode): boolean {
   );
 }
 
-/**
- * Collect h2/h3 for the "On this page" outline and turn each heading into a
- * link to itself. Runs after rehype-slug so every heading already has an id.
- */
+/** Build the h2/h3 outline and self-links after rehype-slug assigns heading IDs. */
 function rehypeHeadingLinks() {
   return (tree: HastNode, file: { data: { toc?: TocItem[] } }) => {
     const toc: TocItem[] = [];

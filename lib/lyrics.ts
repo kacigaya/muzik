@@ -50,11 +50,7 @@ async function lookup(track: Track) {
   return data.syncedLyrics || data.plainLyrics || null;
 }
 
-/**
- * Writes an .lrc next to each downloaded track. Every failure is swallowed: missing
- * lyrics are normal, and a download that already succeeded should not be reported as
- * broken because a lyrics server was unreachable.
- */
+/** Write .lrc sidecars without failing a completed download when lyrics are unavailable. */
 export async function fetchLyrics(files: string[]) {
   if (!(await lyricsSettings()).enabled) return 0;
   let written = 0;

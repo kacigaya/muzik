@@ -30,7 +30,6 @@ export function hasArtworkSidebars(pixels: Uint8Array) {
   return true;
 }
 
-// Writes the square center of sidebar-wrapped embedded artwork to `output`.
 async function cropEmbeddedArtwork(file: string, output: string): Promise<boolean> {
   const { stdout } = await exec("ffprobe", ["-v", "error", "-select_streams", "v", "-show_entries", "stream=index,width,height:stream_disposition=attached_pic", "-of", "json", file], { timeout: 60_000 });
   const probe = JSON.parse(stdout) as { streams?: { index: number; width: number; height: number; disposition?: { attached_pic?: number } }[] };

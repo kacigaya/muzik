@@ -54,8 +54,7 @@ export function defaultFormat(): AudioFormat {
   return configured && AUDIO_FORMATS.includes(configured) ? configured : "m4a";
 }
 
-// The URL is handed to yt-dlp, so it is restricted to the sources Muzik supports rather
-// than to any address the server happens to be able to reach.
+// Restrict yt-dlp URLs to supported sources to prevent arbitrary server-side requests.
 export function validateSourceUrl(value: unknown): string {
   const text = boundedText(value, "Source URL", 1000);
   const url = externalUrl(text);
@@ -128,8 +127,7 @@ export function validateLibraryPath(value: unknown): string {
   return path;
 }
 
-// The library path is an operator-level setting: it is only accepted while Muzik is
-// unconfigured, and every download is confined to it afterwards by safeMusicPath.
+// Set the root only during onboarding; safeMusicPath confines later downloads to it.
 export function validateMusicDir(value: unknown): string {
   if (typeof value !== "string") throw new Error("Music folder is required.");
   const path = value.trim();

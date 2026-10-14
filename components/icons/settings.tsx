@@ -4,11 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import type { HTMLMotionProps } from "motion/react";
 import { cn } from "@/lib/utils";
 
-/**
- * From lucide-animated.com, trimmed to what this app uses: the wrapper stretches to its
- * container so hovering anywhere in an icon button runs the animation, and the glyph stays
- * still when the visitor asked for reduced motion.
- */
+// Adapted from lucide-animated.com; the wrapper fills the button and honors reduced motion.
 export function SettingsIcon({ className, onMouseEnter, onMouseLeave, ...props }: HTMLMotionProps<"span">) {
   const reducedMotion = useReducedMotion();
 

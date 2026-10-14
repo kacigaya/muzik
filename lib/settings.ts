@@ -47,8 +47,7 @@ function fromEnvironment() {
   return process.env.MUZIK_MUSIC_DIR?.trim() ?? "";
 }
 
-// Read on every call: pages and route handlers are separate server bundles, so a cached
-// copy in one of them would not see a folder chosen through the other.
+// Read each time so separate page and route bundles see settings saved by each other.
 async function load(): Promise<Settings | null> {
   try {
     const parsed = JSON.parse(await readFile(settingsFile(), "utf8")) as Partial<Settings>;
@@ -125,11 +124,7 @@ function cleanUsername(value: unknown) {
   return username;
 }
 
-/**
- * NAVIDROME_URL never passes through the settings form, so it is validated on read. An
- * unparseable or non-HTTP value counts as unset, which keeps it out of hrefs and outbound
- * requests and leaves the operator able to configure a server through the UI.
- */
+// NAVIDROME_URL bypasses form validation; invalid values count as unset so the UI can replace them.
 function environmentNavidromeUrl() {
   const candidate = process.env.NAVIDROME_URL?.trim();
   if (!candidate) return "";
@@ -211,10 +206,7 @@ export async function saveNavidromeSettings(value: unknown) {
   });
 }
 
-/**
- * Lyrics are on unless turned off. A non-empty MUZIK_LYRICS pins the choice: a truthy
- * value enables them, anything else disables them, and the settings page cannot override it.
- */
+/** Lyrics default to on; a non-empty MUZIK_LYRICS overrides and locks the saved choice. */
 export async function lyricsSettings(): Promise<LyricsSettings> {
   const environment = process.env.MUZIK_LYRICS?.trim();
   if (environment) return { enabled: /^(1|true|yes|on)$/i.test(environment), pinned: true };
@@ -313,11 +305,7 @@ export async function saveLidarrSettings(value: unknown) {
   });
 }
 
-/**
- * The configured library root, or null while Muzik still needs onboarding. The stored
- * value is re-validated on every read because the environment and settings.json are both
- * edited by hand, and a bad root would widen what safeMusicPath accepts.
- */
+/** Revalidate hand-edited settings on every read to keep safeMusicPath confined to the library. */
 export async function musicDir() {
   const candidate = fromEnvironment() || (await load())?.musicDir || "";
   if (!candidate) return null;

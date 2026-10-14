@@ -33,11 +33,7 @@ function httpsThumbnail(value: string | undefined) {
   }
 }
 
-/**
- * Sources outside YouTube Music have no catalogue API here, so yt-dlp itself describes
- * the link. `--flat-playlist` keeps a large set cheap: one metadata request, no per-track
- * extraction.
- */
+// External sources use yt-dlp for metadata; --flat-playlist avoids per-track extraction.
 export async function resolveExternal(url: string): Promise<SearchItem[]> {
   const ytDlp = process.env.MUZIK_YTDLP ?? `${process.cwd()}/.venv/bin/yt-dlp`;
   const { stdout } = await exec(

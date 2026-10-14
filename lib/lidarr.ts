@@ -68,11 +68,8 @@ export function normalizeName(value: string) {
     .replace(/[([{][^)\]}]*[)\]}]/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
-/**
- * Lidarr's lookup is a fuzzy MusicBrainz search, so only an exact normalized title and
- * artist match is requested. YouTube Music joins collaborators into one artist string,
- * so each credited name is accepted as well as the whole string.
- */
+// Require exact normalized matches from Lidarr's fuzzy lookup to avoid requesting another album.
+// YouTube Music joins collaborators, so accept each credited artist as well as the full string.
 export function matchAlbum(results: unknown, artist: string, album: string): LookupAlbum | null {
   if (!Array.isArray(results)) throw new Error("Lidarr returned invalid album search results.");
   const title = normalizeName(album);
@@ -85,11 +82,8 @@ export function matchAlbum(results: unknown, artist: string, album: string): Loo
     && normalizeName(entry.title) === title && artists.has(normalizeName(entry.artist.artistName))) ?? null;
 }
 
-/**
- * Asks Lidarr to monitor the album and search its indexers. Lidarr then downloads and
- * imports the release itself; Muzik does not track the result. An album already in
- * Lidarr is monitored and searched again rather than added twice.
- */
+// Lidarr handles downloads and imports; Muzik does not track their outcome.
+// Existing albums are monitored and searched again without adding a duplicate.
 export async function requestLidarrAlbum(artist: string, album: string) {
   const connection = await lidarrConnection();
   if (!connection.enabled) throw new Error("Enable Lidarr requests in Settings.");
@@ -107,8 +101,7 @@ export async function requestLidarrAlbum(artist: string, album: string) {
     return { album: label, added: false, message: `${label} is already in Lidarr. Lidarr is searching for it again.` };
   }
   const root = await rootFolder(connection);
-  // Mirrors Lidarr's own "add album" request. The artist is only used if Lidarr does not
-  // have it yet, and monitors nothing else so one request never pulls a discography.
+  // Lidarr adds the artist only if missing; monitor no other albums to avoid pulling a discography.
   await request(connection, "api/v1/album", "POST", {
     ...found,
     monitored: true,

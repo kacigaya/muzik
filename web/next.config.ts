@@ -8,8 +8,7 @@ const nextConfig: NextConfig = {
   basePath,
   trailingSlash: true,
   images: { unoptimized: true },
-  // The app lives in the repo root and has its own lockfile and proxy.ts, so pin the
-  // root here instead of letting Turbopack walk up and pick the parent project.
+  // Pin Turbopack to this project so it does not select the parent app's lockfile and proxy.
   turbopack: { root: path.resolve(import.meta.dirname) },
 };
 

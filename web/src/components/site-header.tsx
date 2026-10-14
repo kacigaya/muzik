@@ -34,7 +34,6 @@ export function SiteHeader({
   const bar = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
 
-  // Escape closes and returns focus to the toggle; a press outside the bar closes.
   useEffect(() => {
     if (!menuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -54,8 +53,7 @@ export function SiteHeader({
   }, [menuOpen]);
 
   return (
-    // Below md the header keeps the closed bar's height, so the open menu
-    // overlays the page instead of pushing it down (as binje's fixed nav does).
+    // Keep the closed header height on mobile so the open menu overlays the page.
     <header className="sticky top-0 z-20 h-[4.625rem] px-4 pt-4 sm:h-[4.375rem] md:h-auto">
       <div
         ref={bar}
@@ -99,8 +97,6 @@ export function SiteHeader({
           </nav>
         </div>
         {mobileMenu && (
-          // Same motion as binje's mobile menu: the bar grows to hold the menu,
-          // the panel fades in, and each link fades and slides down into place.
           <div
             id="mobile-menu"
             inert={!menuOpen}

@@ -1,6 +1,5 @@
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-// "same-site" is not trusted: a sibling subdomain is a different application, and it can
-// still reach Muzik with a CORS-simple request.
+// Sibling subdomains can send CORS-simple requests, so "same-site" is not trusted.
 const TRUSTED_SITES = new Set(["same-origin", "none"]);
 
 function isAllowedOrigin(origin: string | null, allowed: string[]): boolean {
@@ -12,11 +11,7 @@ function isAllowedOrigin(origin: string | null, allowed: string[]): boolean {
   }
 }
 
-/**
- * Muzik has no accounts, so same-origin is its only trust boundary. A state-changing
- * request is trusted when the browser says it came from Muzik itself, or when the
- * operator has listed the caller in MUZIK_ALLOWED_ORIGINS.
- */
+/** Without accounts, writes rely on same-origin checks and explicit MUZIK_ALLOWED_ORIGINS. */
 export function isTrustedRequest(input: {
   method: string;
   origin: string | null;
@@ -25,8 +20,7 @@ export function isTrustedRequest(input: {
   allowed: string[];
 }): boolean {
   if (SAFE_METHODS.has(input.method.toUpperCase())) return true;
-  // Every browser that can send a forged request also sends Sec-Fetch-Site, and it cannot
-  // be set by script, so it decides on its own when present.
+  // Scripts cannot set Sec-Fetch-Site, so it takes precedence over Origin and Host.
   if (input.secFetchSite) {
     return TRUSTED_SITES.has(input.secFetchSite) || isAllowedOrigin(input.origin, input.allowed);
   }
@@ -39,9 +33,7 @@ export function isTrustedRequest(input: {
     }
     return origin.host === input.host || input.allowed.includes(origin.origin);
   }
-  // Non-browser clients (curl, the container HEALTHCHECK, scripts) send neither header.
-  // A browser always sends Origin on a cross-origin unsafe request, so nothing forged
-  // reaches this line.
+  // Non-browser clients may omit both headers; cross-origin browser writes carry Origin.
   return true;
 }
 

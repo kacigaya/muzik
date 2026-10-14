@@ -6,7 +6,6 @@ const PAGES = NAV.flatMap((section) => section.items);
 const LINK_CLASS =
   "flex flex-col gap-1 rounded-lg border p-4 outline-none transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring";
 
-// Previous and next pages follow the sidebar order.
 export function DocsPager({ href }: { href: string }) {
   const index = PAGES.findIndex((page) => page.href === href);
   if (index === -1) return null;

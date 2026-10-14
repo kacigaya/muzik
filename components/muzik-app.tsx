@@ -35,7 +35,6 @@ const GROUPS: { key: GroupKey; label: string }[] = [
 ];
 
 
-/** The queue only shows this many jobs until the visitor asks for the rest. */
 const QUEUE_PREVIEW = 6;
 
 const STATUS_BADGE: Record<JobStatus, BadgeProps["variant"]> = {
@@ -68,9 +67,8 @@ function sourceKey(item: Pick<SearchItem, "kind" | "sourceId">) {
   return `${item.kind}-${item.sourceId}`;
 }
 
-// Navidrome's list views filter albums by `name` and songs by `title`; an unmatched
-// title simply lands on the unfiltered list instead of breaking the link. Playlists are
-// downloaded into an album folder named after the playlist, so they use the album view.
+// Navidrome filters albums by name and songs by title; unmatched titles leave the list unfiltered.
+// Downloaded playlists become album folders, so use the album view for them.
 function navidromeLink(job: DownloadJob, baseUrl: string) {
   if (!baseUrl) return null;
   const resource = job.kind === "song" ? "song" : "album";
@@ -222,14 +220,12 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
       await loadSubscriptions();
       restoreFormat();
     })();
-    // The format now lives on its own page, so another tab can change it under us.
+    // Another tab can change the format through settings.
     window.addEventListener("storage", restoreFormat);
     return () => window.removeEventListener("storage", restoreFormat);
   }, [loadSubscriptions]);
 
-  // SSE gives immediate updates when supported. Kept out of the polling effect because it
-  // must not be torn down every time the queue goes busy or idle: reconnecting drops the
-  // events that arrive in between, which is exactly when they matter most.
+  // Keep SSE separate from polling so queue activity changes do not reconnect and drop events.
   useEffect(() => {
     const source = new EventSource("/api/jobs/stream");
     source.onmessage = (event) => {
@@ -244,8 +240,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
     };
   }, [applyJobs, loadJobs]);
 
-  // Polling always stays active because some proxies deliver the first event, then buffer
-  // later events on the same connection. Only the interval follows the queue.
+  // Keep polling as a fallback for proxies that deliver the first SSE event but buffer later ones.
   useEffect(() => {
     const timer = window.setInterval(loadJobs, busy ? 1_000 : 5_000);
     return () => window.clearInterval(timer);
@@ -435,8 +430,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
 
   const activeJobs = jobs.filter(isActive).length;
   const runningJob = jobs.find((job) => job.status === "running");
-  // A retried job keeps its place in the list, so unfinished work can sit anywhere in it;
-  // floating it keeps live progress inside the preview.
+  // Retried jobs keep their list position; move active jobs into the preview so progress stays visible.
   const orderedJobs = [...jobs].sort((left, right) => Number(isActive(right)) - Number(isActive(left)));
   const visibleJobs = showAllJobs ? orderedJobs : orderedJobs.slice(0, QUEUE_PREVIEW);
   const compact = Boolean(results) || loading;

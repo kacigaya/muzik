@@ -16,10 +16,7 @@ import { Switch } from "@/components/ui/switch";
 
 const RADIO_STEP: Record<string, number> = { ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1 };
 
-/**
- * Keeps the arrow-key behaviour the radiogroup role promises: focus moves between the
- * buttons, wraps around, and takes the selection with it.
- */
+/** Radiogroups must wrap arrow-key focus and select the newly focused option. */
 function moveRadioFocus(event: React.KeyboardEvent<HTMLDivElement>) {
   const step = RADIO_STEP[event.key];
   if (step === undefined && event.key !== "Home" && event.key !== "End") return;
@@ -71,8 +68,7 @@ export function SettingsPanel({
   const [savingLyrics, setSavingLyrics] = useState(false);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
 
-  // The choice only exists in the browser, so it is applied after mount rather than
-  // during render, where it would not match the server markup.
+  // Apply the browser-only choice after mount to avoid a hydration mismatch.
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const stored = window.localStorage.getItem("muzik-format") as AudioFormat | null;
@@ -127,8 +123,7 @@ export function SettingsPanel({
       setApiKey("");
       setPassword("");
       setNavidromeMessage(clearAuth ? "Navidrome credentials removed." : "Navidrome settings saved.");
-      // The nav bar renders the server-supplied URL, so it only learns about a new server
-      // once the surrounding server component re-renders.
+      // Refresh the server-rendered nav so it picks up the saved URL.
       router.refresh();
     } catch (cause) {
       setNavidromeError(cause instanceof Error ? cause.message : "Could not save Navidrome settings.");

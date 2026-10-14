@@ -35,8 +35,7 @@ async function read(): Promise<Subscription[]> {
   }
 }
 
-// Follow, unfollow, and the scheduler all rewrite the same file, so writes are queued
-// behind one another instead of racing.
+// Serialize writes because follow, unfollow, and the scheduler share one file.
 let writeChain = Promise.resolve();
 
 async function write(subscriptions: Subscription[]) {
@@ -79,10 +78,7 @@ export async function removeSubscription(id: string) {
   return remaining;
 }
 
-/**
- * Re-queues each due collection. yt-dlp's download archive already skips everything that
- * was fetched before, so a sync job only pulls tracks added since the last run.
- */
+/** yt-dlp's archive skips previously downloaded tracks, so sync only fetches additions. */
 export async function syncDue(at = Date.now()) {
   if (!(await musicDir())) return [];
   const subscriptions = await read();

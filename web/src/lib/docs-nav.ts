@@ -36,7 +36,6 @@ export const NAV: NavSection[] = [
   },
 ];
 
-// Every markdown doc slug derived from the nav (["/docs"] -> []).
 export function getDocSlugs(): string[][] {
   return NAV.flatMap((section) =>
     section.items.map((item) =>
