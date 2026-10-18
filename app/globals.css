@@ -7,6 +7,13 @@
   --font-heading: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --animate-skeleton: skeleton 2s -1s infinite linear;
+  --animate-sheet-in: sheet-in 0.3s ease-out backwards;
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      translate: 0 var(--sheet-offset, 0);
+    }
+  }
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-ring: var(--ring);
