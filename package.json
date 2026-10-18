@@ -13,7 +13,7 @@
     "test": "node --test --experimental-strip-types tests/*.test.mjs && .venv/bin/python -m unittest discover -s scripts -p '*_test.py'"
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
+    "@base-ui/react": "^1.8.0",
     "@tailwindcss/postcss": "^4.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
