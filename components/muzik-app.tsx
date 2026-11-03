@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, ListPlus, Music2, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellOff, Brush, Check, ChevronDown, Clock, Download, Github, ListPlus, Music2, Play, RefreshCw, Search, X } from "lucide-react";
 import type { AudioFormat, DownloadJob, JobStatus, SearchItem, SearchResponse, Subscription } from "@/lib/types";
 import { AUDIO_FORMATS } from "@/lib/types";
 import { newlyCompleted } from "@/lib/completed";
@@ -24,6 +24,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { toastManager } from "@/components/ui/toast";
+import Link from "next/link";
+import { TrackActions, useListening } from "@/components/listening-provider";
 import { SiteNav } from "@/components/site-nav";
 
 type GroupKey = keyof Pick<SearchResponse, "songs" | "albums" | "playlists">;
@@ -132,7 +134,9 @@ function focusSearch() {
   document.getElementById("music-search")?.focus();
 }
 
-export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navidromeUrl: string; lidarrEnabled: boolean; defaultFormat: AudioFormat }) {
+export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat, downloadsConfigured }: { navidromeUrl: string; lidarrEnabled: boolean; defaultFormat: AudioFormat; downloadsConfigured: boolean }) {
+  const listening = useListening();
+  const [playingCollection, setPlayingCollection] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [suggesting, setSuggesting] = useState(false);
@@ -277,6 +281,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
 
   async function add(item: SearchItem, quiet = false) {
     setMessage(null);
+    if (!downloadsConfigured) { setMessage("Choose a music folder in Settings before downloading."); return false; }
     const response = await fetch("/api/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -352,6 +357,25 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
       setMessage(cause instanceof Error ? cause.message : "Could not load the track list.");
       setExpanded(null);
     }
+  }
+
+  async function playCollection(item: SearchItem, queueOnly = false) {
+    setPlayingCollection(sourceKey(item));
+    setMessage(null);
+    try {
+      const key = sourceKey(item);
+      let listed = tracks[key];
+      if (!listed) {
+        const response = await fetch(`/api/tracks?kind=${item.kind}&id=${encodeURIComponent(item.sourceId)}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "Could not load collection.");
+        listed = data.items as SearchItem[];
+        setTracks((current) => ({ ...current, [key]: listed }));
+      }
+      if (queueOnly) listening.enqueue(listed);
+      else listening.play(listed);
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Could not play collection."); }
+    finally { setPlayingCollection(null); }
   }
 
   function toggleTrack(id: string) {
@@ -481,7 +505,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
           const listed = tracks[key];
           const chosen = (listed ?? []).filter((track) => selected.has(track.sourceId)).length;
           return (
-            <Card className={`min-w-0 p-2.5 ${open ? "sm:col-span-2" : ""}`} key={key}>
+            <Card className={`min-w-0 gap-2 p-2.5 ${open ? "sm:col-span-2" : ""}`} key={key}>
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-13 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
                   {item.thumbnail ? (
@@ -537,6 +561,10 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
                 )}
                 {itemAction(item)}
               </div>
+              {!item.url && (collection ? <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" loading={playingCollection === key} disabled={playingCollection !== null} onClick={() => void playCollection(item)}><Play aria-hidden="true" />Play</Button>
+                <Button size="sm" variant="ghost" disabled={playingCollection !== null} onClick={() => void playCollection(item, true)}>Add to playback queue</Button>
+              </div> : <TrackActions track={item} />)}
               {open && (
                 <div className="mt-2.5 border-t pt-2.5">
                   {!listed ? (
@@ -549,7 +577,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
                     <>
                       <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
                         {listed.map((track, index) => (
-                          <li key={track.sourceId}>
+                          <li key={track.sourceId} className="rounded-md border p-1">
                             <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-xs hover:bg-accent/50">
                               <input
                                 type="checkbox"
@@ -561,6 +589,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
                               <span className="min-w-0 flex-1 truncate">{track.title}</span>
                               <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">{duration(track.durationSeconds)}</span>
                             </label>
+                            <TrackActions track={track} />
                           </li>
                         ))}
                       </ul>
@@ -585,7 +614,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
     <div className="flex min-h-dvh flex-col">
       <SiteNav navidromeUrl={navidromeUrl} logoHref="#top" />
 
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         {/* Once results exist the hero collapses into a sticky search bar so results stay on screen. */}
         <section
           className={compact ? "sticky top-0 z-30 border-b bg-background px-4 py-3" : "px-4 py-14 sm:py-20"}
@@ -600,7 +629,7 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
               What do you want to listen to?
             </h1>
             <p className={compact ? "hidden" : "mx-auto mt-4 max-w-lg text-pretty text-sm text-muted-foreground sm:text-base"}>
-              Search YouTube Music, then save songs, albums, and playlists directly to Navidrome.
+              Stream songs, albums, and playlists from YouTube Music. Keep your favorites and download music to your library.
             </p>
             <form
               onSubmit={searchMusic}
@@ -655,6 +684,8 @@ export function MuzikApp({ navidromeUrl, lidarrEnabled, defaultFormat }: { navid
                 <FieldError />
               </Field>
             </form>
+            {!downloadsConfigured && <p className="mt-3 text-xs text-muted-foreground">Streaming is ready. <Link href="/settings" className="underline">Set up a download folder</Link> to save audio files.</p>}
+            {listening.error && <p className="mt-3 text-xs text-destructive-foreground" role="alert">{listening.error}</p>}
             {message && (
               <div
                 className="mx-auto mt-4 flex w-fit max-w-full items-center gap-2 rounded-lg border bg-card py-1 ps-3 pe-1 text-start text-xs text-muted-foreground"

@@ -5,8 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <SiteNav navidromeUrl="" logoHref="#top" />
-      <main className="flex-1 px-4 py-14 sm:py-20" id="top">
+      <SiteNav navidromeUrl="" logoHref="/" />
+      <main className="flex-1 px-4 py-14 sm:py-20" id="main-content" tabIndex={-1}>
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center text-center">
           <Music2 aria-hidden="true" className="mb-4 size-8 text-muted-foreground" />
           <Skeleton className="h-12 w-full max-w-xl rounded-xl sm:h-14" />

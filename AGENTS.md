@@ -7,3 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Runtime and validation
+
+- The app uses npm, Next.js App Router, and Python bridges in `.venv`.
+- Production binds to `127.0.0.1:3020` by default. Docker uses port `3020`.
+- `web/` is the separate documentation site.
+- Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `node scripts/audit_dependencies.mjs` for app changes. CI also builds the Docker image.
+- Direct audio uses the existing yt-dlp binary at `MUZIK_YTDLP` or `.venv/bin/yt-dlp`. Only YouTube video IDs enter `/api/audio`.
+- Likes and playlists share `listening.json` in `MUZIK_DATA_DIR` (default `/srv/muzik/data`). The instance has no accounts. Run one app process per data directory because JSON writes use a process-local lock.
+- The browser keeps its own playback queue in `muzik-playback` local storage. It restores paused. Streaming requires no configured download folder.

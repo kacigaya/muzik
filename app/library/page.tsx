@@ -4,12 +4,12 @@ import { SiteNav } from "@/components/site-nav";
 import { musicDir, publicNavidromeSettings } from "@/lib/settings";
 
 export default async function LibraryPage() {
-  if (!(await musicDir())) redirect("/");
+  if (!(await musicDir())) redirect("/settings");
   const navidrome = await publicNavidromeSettings();
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteNav navidromeUrl={navidrome.url} />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <LibraryBrowser />
       </main>
     </div>

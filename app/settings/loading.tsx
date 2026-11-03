@@ -5,7 +5,7 @@ export default function Loading() {
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteNav navidromeUrl="" />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-8">
           <h1 className="mb-8 font-heading text-xl font-semibold">Settings</h1>
           <div className="mb-8">
