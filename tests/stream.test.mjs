@@ -86,3 +86,35 @@ process.stdout.write(JSON.stringify({url: ${JSON.stringify(url)}, protocol:"http
   await resolveAudio("testaudio01", true);
   assert.equal(await readFile(calls, "utf8"), "xx");
 });
+
+
+test("resolver tries the next client when extraction fails", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "muzik-audio-fallback-"));
+  const binary = join(directory, "yt-dlp"), calls = join(directory, "calls");
+  await writeFile(binary, `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const client = args.find(arg => arg.startsWith("youtube:player_client="));
+fs.appendFileSync(${JSON.stringify(calls)}, client + "|");
+if (client.endsWith("android_vr")) process.exit(1);
+process.stdout.write(JSON.stringify({url:${JSON.stringify(url)},protocol:"https",ext:"m4a",vcodec:"none"}));
+`, { mode: 0o700 });
+  const saved = Object.fromEntries(["MUZIK_YTDLP", "MUZIK_PO_TOKEN_BASE_URL", "MUZIK_VPN_CONTAINER", "MUZIK_STREAM_PROXY_URL"].map(key => [key, process.env[key]]));
+  for (const key of Object.keys(saved)) delete process.env[key];
+  process.env.MUZIK_YTDLP = binary;
+  t.after(async () => {
+    for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+    await rm(directory, { recursive: true, force: true });
+  });
+  const result = await resolveAudio("fallback001");
+  assert.equal(result.clientIndex, 1);
+  assert.equal(await readFile(calls, "utf8"), "youtube:player_client=android_vr|youtube:player_client=web_embedded|");
+});
+
+
+test("source headers preserve client identity without forwarding credentials or malformed values", () => {
+  const base = { url, protocol: "https", ext: "m4a", vcodec: "none" };
+  assert.deepEqual(parseAudioSource({ ...base, http_headers: { "User-Agent": "Test client", Referer: "https://music.youtube.com/", Cookie: "private", Authorization: "private", Range: "bytes=0-" } }).headers, { "User-Agent": "Test client", Referer: "https://music.youtube.com/" });
+  assert.throws(() => parseAudioSource({ ...base, http_headers: { "User-Agent": "bad\r\nInjected: yes" } }));
+  assert.throws(() => parseAudioSource({ ...base, http_headers: { Referer: "http://localhost/private" } }));
+});

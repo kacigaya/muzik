@@ -99,8 +99,32 @@ of 500 tracks. Playlists hold up to 1000 songs, with up to 100 playlists and 500
 songs per instance. Select individual tracks to play a collection larger than 500 songs.
 
 YouTube can block requests from server IP addresses. If playback fails, try **Retry**
-or another track. Keep yt-dlp current when YouTube changes its playback endpoints.
+or another track. Keep yt-dlp and the token provider current when YouTube changes its playback endpoints.
 Browser and device rules can also limit automatic or background playback.
+
+### Gluetun and proof-of-origin tokens
+
+1. Enable Gluetun's HTTP proxy on port 8888.
+2. Set `MUZIK_STREAM_PROXY_URL` to its HTTP proxy URL. Include the proxy credentials when required. Store this setting in a private environment file.
+3. Install the [BgUtils token provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider/tree/2.0.2) version 2.0.2 on the server. The matching yt-dlp plugin is in `requirements.txt`.
+4. Bind the provider to loopback, then set `MUZIK_PO_TOKEN_BASE_URL=http://127.0.0.1:4416`. Keep its Node dependencies patched and keep the deployment lockfile.
+5. Restart Muzik after changing these settings.
+
+With a token provider configured, playback tries `mweb` with proof-of-origin tokens,
+then `android_vr` and `web_embedded`. Without a provider, it tries the latter two clients.
+It tries another client when extraction fails or a media URL returns 403, 404, 410,
+or 429. This uses yt-dlp's client profiles. It does not add the JVM-based NewPipe extractor.
+
+URL resolution, token generation, and media bytes use the same proxy and VPN exit IP.
+The plugin passes the selected proxy to the local token provider. If
+`MUZIK_VPN_CONTAINER` is set, streaming requires `MUZIK_STREAM_PROXY_URL` and fails
+closed when the proxy is missing or unavailable. Muzik does not fall back to the host
+network after a proxy failure. Metadata search uses the existing YouTube Music bridge.
+
+No YouTube account cookies are stored or sent. Tokens improve compatibility but do not
+guarantee access to every track or VPN exit IP. Keep the unauthenticated token provider
+private. Its upstream setup supports a separate provider container for Docker deployments;
+set `MUZIK_PO_TOKEN_BASE_URL` to that container's private address.
 
 ## Documentation
 
