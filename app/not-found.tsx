@@ -13,7 +13,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteNav navidromeUrl="" />
-      <main className="flex flex-1 items-center px-4 py-14 sm:py-20">
+      <main id="main-content" tabIndex={-1} className="flex flex-1 items-center px-4 py-14 sm:py-20">
         <section className="mx-auto flex w-full max-w-md flex-col items-center text-center" aria-labelledby="not-found-title">
           <span className="font-mono text-sm text-muted-foreground tabular-nums">404</span>
           <Music2 aria-hidden="true" className="mt-5 size-8 text-muted-foreground" />

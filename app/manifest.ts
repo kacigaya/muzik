@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Muzik",
     short_name: "Muzik",
-    description: "Search YouTube Music and save songs, albums, and playlists to your own library.",
+    description: "Stream YouTube Music, save playlists, and download songs to your own library.",
     start_url: "/",
     display: "standalone",
     background_color: "#fafaf9",

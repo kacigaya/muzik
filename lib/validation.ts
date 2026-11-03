@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 import { externalUrl } from "./sources.ts";
 import { AUDIO_FORMATS, type AudioFormat, type CreateJobRequest, type SearchKind } from "./types.ts";
 
-export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-export const PLAYLIST_ID = /^[A-Za-z0-9_-]{10,200}$/;
+import { VIDEO_ID, PLAYLIST_ID } from "./source-ids.ts";
+export { VIDEO_ID, PLAYLIST_ID } from "./source-ids.ts";
 // Sources outside YouTube Music are identified by the link, so their id is a digest of it.
 export const EXTERNAL_ID = /^[a-f0-9]{16}$/;
 const KINDS = new Set<SearchKind>(["song", "album", "playlist"]);

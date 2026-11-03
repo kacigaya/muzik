@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Disc3, Music2 } from "lucide-react";
+import { Disc3, Music2, Heart } from "lucide-react";
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { GalleryVerticalEndIcon } from "@/components/icons/gallery-vertical-end";
@@ -12,6 +12,7 @@ import { SettingsIcon } from "@/components/icons/settings";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
+  { href: "/saved", label: "Saved music", icon: Heart },
   { href: "/library", label: "Browse the library", icon: GalleryVerticalEndIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -47,7 +48,7 @@ export function SiteNav({ navidromeUrl, logoHref = "/" }: { navidromeUrl: string
                 aria-current={current ? "page" : undefined}
               >
                 {/* Fills the button so the hover animation starts from anywhere inside it. */}
-                <Icon className="size-full" />
+                <Icon className={href === "/saved" ? "size-4" : "size-full"} />
               </Button>
             );
           })}

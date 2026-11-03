@@ -5,8 +5,8 @@
 <h1 align="center">Muzik</h1>
 
 <p align="center">
-   <strong>A YouTube Music search and download front end for your own music library.</strong><br>
-   <em>Search or paste a link, queue the download, and the tracks land tagged on disk.</em>
+   <strong>A private YouTube Music streaming player and download front end.</strong><br>
+   <em>Play music, save playlists, and keep tagged downloads in your own library.</em>
 </p>
 
 <p align="center">
@@ -21,8 +21,8 @@
   <a href="https://kacigaya.github.io/muzik/"><strong>Documentation</strong></a>
 </p>
 
-Muzik writes into a directory you choose, in an `Artist/Album/Track` layout that Navidrome,
-Jellyfin, Plex, or a plain file browser can read. It has no accounts and no database.
+Muzik streams audio through your server. Downloads use an `Artist/Album/Track` layout that Navidrome,
+Jellyfin, Plex, or a plain file browser can read. It has no accounts and no database. Likes and playlists are shared on the server.
 
 ## Screenshots
 
@@ -35,6 +35,11 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 ![Downloaded music organized by artist in the library browser](public/screenshots/library.png)
 
 ## Features
+
+- Stream YouTube Music audio with play, pause, seek, volume, and previous/next controls
+- Keep playback active across Muzik pages, with media controls on supported browsers
+- Add, remove, and reorder songs in a playback queue that restores paused after a reload
+- Save liked songs and create, rename, or delete playlists on your server
 
 - Search songs, albums, and playlists from YouTube Music, or paste a YouTube, YouTube Music, SoundCloud, or Bandcamp link
 - Expand an album or playlist and queue only the tracks you want
@@ -69,11 +74,33 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 npm run dev
 ```
 
-Muzik asks for a music folder the first time you open it. Set `MUZIK_MUSIC_DIR` to skip
-that screen.
+Streaming works without a music folder. Open **Settings** to set up downloads, or set
+`MUZIK_MUSIC_DIR` before starting Muzik.
 
 **Muzik has no authentication.** Bind it to a private interface or put it behind whatever
 front end you already use. See [Deploy](https://kacigaya.github.io/muzik/docs/getting-started/deploy/).
+
+## Streaming
+
+1. Search for a song, album, or YouTube Music playlist.
+2. Select **Play** to start a new playback queue. This replaces the current queue.
+3. Use **Add to playback queue** to append music without interrupting playback.
+4. Use the heart control to save a song. Open **Saved music** in the navigation to create playlists.
+5. Expand **Playback queue** above the player to choose, move, or remove tracks.
+
+The server uses the installed yt-dlp to resolve a progressive M4A or WebM audio stream.
+Audio passes through Muzik, with byte ranges for seeking. Streaming does not save an
+audio file or convert its quality. YouTube audio is lossy. Lossless addons, offline
+playback, and YouTube account sync are not included.
+
+Likes and playlists live in `listening.json` under `MUZIK_DATA_DIR`. All users of the
+instance share them. Run one app process per data directory. Each browser stores its own queue in local storage, with a limit
+of 500 tracks. Playlists hold up to 1000 songs, with up to 100 playlists and 5000 liked
+songs per instance. Select individual tracks to play a collection larger than 500 songs.
+
+YouTube can block requests from server IP addresses. If playback fails, try **Retry**
+or another track. Keep yt-dlp current when YouTube changes its playback endpoints.
+Browser and device rules can also limit automatic or background playback.
 
 ## Documentation
 
