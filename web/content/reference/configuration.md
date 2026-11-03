@@ -40,7 +40,7 @@ the box.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `MUZIK_STREAM_PROXY_URL` | unset | Gluetun HTTP proxy URL, with credentials when required. Used by stream extraction and audio requests. Store it in a private environment file. |
-| `MUZIK_PO_TOKEN_BASE_URL` | unset | Private BgUtils 2.0.2 token provider URL. Enables `mweb` before the other client profiles. |
+| `MUZIK_PO_TOKEN_BASE_URL` | unset | Private BgUtils 2.0.2 token provider URL. Enables `web_music` and `mweb` before the other client profiles. |
 
 When `MUZIK_VPN_CONTAINER` is set, streaming requires the proxy URL. Proxy failures
 stop playback instead of sending requests through the host network. Token requests use

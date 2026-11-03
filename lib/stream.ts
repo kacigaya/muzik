@@ -52,12 +52,12 @@ export function parseAudioSource(value: unknown): AudioSource {
 
 export function streamClients(): string[] {
   return process.env.MUZIK_PO_TOKEN_BASE_URL?.trim()
-    ? ["mweb", "android_vr", "web_embedded"]
+    ? ["web_music", "mweb", "android_vr", "web_embedded"]
     : ["android_vr", "web_embedded"];
 }
 
 export function extractionArguments(id: string, client: string): string[] {
-  if (!VIDEO_ID.test(id) || !["mweb", "android_vr", "web_embedded"].includes(client)) throw new Error("Invalid audio source.");
+  if (!VIDEO_ID.test(id) || !["web_music", "mweb", "android_vr", "web_embedded"].includes(client)) throw new Error("Invalid audio source.");
   const proxy = streamProxy();
   const provider = process.env.MUZIK_PO_TOKEN_BASE_URL?.trim();
   const args = [

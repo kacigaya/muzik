@@ -110,7 +110,7 @@ Browser and device rules can also limit automatic or background playback.
 4. Bind the provider to loopback, then set `MUZIK_PO_TOKEN_BASE_URL=http://127.0.0.1:4416`. Keep its Node dependencies patched and keep the deployment lockfile.
 5. Restart Muzik after changing these settings.
 
-With a token provider configured, playback tries `mweb` with proof-of-origin tokens,
+With a token provider configured, playback tries `web_music` and `mweb` with proof-of-origin tokens,
 then `android_vr` and `web_embedded`. Without a provider, it tries the latter two clients.
 It tries another client when extraction fails or a media URL returns 403, 404, 410,
 or 429. This uses yt-dlp's client profiles. It does not add the JVM-based NewPipe extractor.

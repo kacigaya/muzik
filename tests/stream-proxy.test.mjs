@@ -30,10 +30,11 @@ test("VPN configuration fails closed and extraction uses the same proxy with an 
   assert.throws(() => streamProxy(), /not configured/);
   process.env.MUZIK_STREAM_PROXY_URL = "http://user:password@127.0.0.1:8888";
   process.env.MUZIK_PO_TOKEN_BASE_URL = "http://127.0.0.1:4416";
-  assert.deepEqual(streamClients(), ["mweb", "android_vr", "web_embedded"]);
+  assert.deepEqual(streamClients(), ["web_music", "mweb", "android_vr", "web_embedded"]);
   const args = extractionArguments("abcdefghijk", "mweb");
   assert.equal(args[args.indexOf("--proxy") + 1], "http://user:password@127.0.0.1:8888/");
   assert.ok(args.includes("youtube:player_client=mweb"));
+  assert.ok(extractionArguments("VrN6EDxTOIU", streamClients()[0]).includes("youtube:player_client=web_music"));
   assert.ok(args.includes("youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416"));
   assert.throws(() => extractionArguments("bad", "mweb"));
   assert.throws(() => extractionArguments("abcdefghijk", "not-a-client"));
