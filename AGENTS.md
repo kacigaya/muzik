@@ -17,3 +17,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Direct audio uses the existing yt-dlp binary at `MUZIK_YTDLP` or `.venv/bin/yt-dlp`. Only YouTube video IDs enter `/api/audio`.
 - Likes and playlists share `listening.json` in `MUZIK_DATA_DIR` (default `/srv/muzik/data`). The instance has no accounts. Run one app process per data directory because JSON writes use a process-local lock.
 - The browser keeps its own playback queue in `muzik-playback` local storage. It restores paused. Streaming requires no configured download folder.
+
+- Streaming uses `MUZIK_STREAM_PROXY_URL` for both yt-dlp and media bytes. If `MUZIK_VPN_CONTAINER` is set, an absent proxy is an error. Proxy failures never fall back to direct requests.
+- `MUZIK_PO_TOKEN_BASE_URL` enables `web_music` and `mweb` before `android_vr` and `web_embedded`. `requirements.txt` pins the matching BgUtils yt-dlp plugin.
+- On this host, `muzik-pot.service` runs BgUtils 2.0.2 from `/srv/muzik/bgutil/server`, on `127.0.0.1:4416`. Its deployment lockfile includes compatible security fixes. `/etc/muzik-stream.env` holds private proxy settings and is loaded by a `muzik.service` drop-in. Never print its values.
