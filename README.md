@@ -20,6 +20,10 @@ Muzik searches, streams, and downloads YouTube Music on the device. There is no 
 
 - Android 8.0 (API 26) or later.
 
+## Install
+
+Download `muzik-<version>.apk` from the [latest release](https://github.com/kacigaya/muzik/releases). Check it against `SHA256SUMS.txt`, then open it on your phone. Alpha releases are pre-releases.
+
 ## Build
 
 1. Install JDK 21 and the Android SDK with platform `android-37.2` and build-tools `36.0.0`.

@@ -35,6 +35,13 @@ CI (`.github/workflows/ci.yml`) runs all three on each push to `main` and on pul
   4. Commit the references with the change.
 - Do not record new references to hide an unexplained failure. Rendering can differ between host architectures.
 
+## Releases
+
+- Pushing a tag `vX.Y.Z` (or `vX.Y.Z-alpha.N`) runs `.github/workflows/release.yml`. It checks that `versionName` in `app/build.gradle.kts` is `X.Y.Z` and that `CHANGELOG.md` has a `## X.Y.Z` section. It then runs tests and lint, builds `:app:assembleRelease`, and checks the certificate (SHA-256 `4583a987938443a2c93bbcd93dfbc766464d380c4de068fcb1ae68d6212018f9`). Finally it publishes `muzik-X.Y.Z.apk` and `SHA256SUMS.txt`. A `v0.*` tag or a tag with a suffix makes a pre-release. The changelog section becomes the release notes.
+- Raise `versionCode` for every release. Android refuses an update with the same or a lower code.
+- The release key is a PKCS12 keystore with the alias `muzik` and the subject `CN=Muzik`, valid until 2056. The repository secrets `MUZIK_KEYSTORE_BASE64`, `MUZIK_KEYSTORE_PASSWORD`, `MUZIK_KEY_ALIAS`, and `MUZIK_KEY_PASSWORD` hold it. The local copy and its password file are outside the repository, in `~/.config/muzik/`. Losing the key means users must uninstall before they can update.
+- On 2026-11-26 all releases and tags from the old web app (v0.1.0 to v0.15.0) were deleted. The Android app starts again at `v0.1.0-alpha.1`.
+
 ## Architecture
 
 - `data/YouTube.kt`: NewPipeExtractor wrapper. Search (songs, albums, playlists), collection tracks, and audio URL lookup. NewPipeExtractor uses the visionOS client and needs no PO token. Media requests must send `YouTube.mediaUserAgent`.

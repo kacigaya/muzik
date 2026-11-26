@@ -27,8 +27,8 @@ android {
         applicationId = "app.muzik"
         minSdk = 26
         targetSdk = 37
-        versionCode = 16
-        versionName = "0.16.0"
+        versionCode = 1
+        versionName = "0.1.0-alpha.1"
     }
 
     signingConfigs {
