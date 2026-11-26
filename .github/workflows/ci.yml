@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,50 +14,47 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Lint, typecheck, test, build
-    runs-on: ubuntu-26.04
+  build:
+    name: Test, lint, build APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 22
-          cache: npm
+          persist-credentials: false
 
-      - run: npm ci
-
-      - uses: actions/setup-python@v7
+      - name: Set up Java 21
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
-          python-version: '3.12'
+          distribution: temurin
+          java-version: '21'
 
-      # npm test expects the Python bridge in .venv, matching local development.
-      - name: Install the Python bridge
-        run: |
-          python3 -m venv .venv
-          .venv/bin/pip install --disable-pip-version-check -r requirements.txt
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
-      # Ubuntu 26.04 runner images no longer ship ffmpeg; the artwork tests call it directly.
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install Android SDK packages
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.2" "build-tools;36.0.0"'
 
-      - run: npm run lint
+      - name: Test, lint, and build the debug APK
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 
-      - run: npm run typecheck
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 14
 
-      - run: npm test
-
-      - run: npm run build
-
-      # Report advisories below high without blocking unrelated changes.
-      - name: Audit dependencies
-        run: node scripts/audit_dependencies.mjs
-
-  image:
-    name: Docker image
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v7
-
-      # Verify the Docker install of ffmpeg, Python, and yt-dlp separately from the host setup.
-      - run: docker build -t muzik:ci .
+      - name: Upload APK
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muzik-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
