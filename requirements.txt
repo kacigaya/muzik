@@ -1,3 +1,0 @@
-yt-dlp[default]==2026.10.26
-ytmusicapi==1.12.3
-bgutil-ytdlp-pot-provider==2.0.2
