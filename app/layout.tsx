@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
+import { AppShell } from "@/components/app-shell";
+import { DownloadsProvider } from "@/components/downloads-provider";
 import { ServiceWorker } from "@/components/service-worker";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -29,7 +31,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${geistMono.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <ToastProvider><ListeningProvider><a href="#main-content" className="sr-only focus:not-sr-only focus:block focus:p-3">Skip to content</a>{children}</ListeningProvider></ToastProvider>
+          <ToastProvider>
+            <ListeningProvider>
+              <DownloadsProvider>
+                <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:p-3">Skip to content</a>
+                <AppShell>{children}</AppShell>
+              </DownloadsProvider>
+            </ListeningProvider>
+          </ToastProvider>
           <ServiceWorker />
         </ThemeProvider>
       </body>

@@ -42,7 +42,7 @@ Jellyfin, Plex, or a plain file browser can read. It has no accounts and no data
 - Save liked songs and create, rename, or delete playlists on your server
 
 - Search songs, albums, and playlists from YouTube Music, or paste a YouTube, YouTube Music, SoundCloud, or Bandcamp link
-- Expand an album or playlist and queue only the tracks you want
+- Open an album or playlist to play it, follow it, download all of it, or download single tracks
 - Follow a collection and Muzik re-checks it on a schedule, downloading whatever was added since
 - Serial queue with live progress, speed, and time remaining, persisted to disk and recovered after a restart
 - Pick m4a, opus, mp3, or transcoded FLAC
@@ -84,9 +84,9 @@ front end you already use. See [Deploy](https://kacigaya.github.io/muzik/docs/ge
 
 1. Search for a song, album, or YouTube Music playlist.
 2. Select **Play** to start a new playback queue. This replaces the current queue.
-3. Use **Add to playback queue** to append music without interrupting playback.
-4. Use the heart control to save a song. Open **Saved music** in the navigation to create playlists.
-5. Expand **Playback queue** above the player to choose, move, or remove tracks.
+3. Open the `…` menu on a song and select **Add to queue** to append it without interrupting playback.
+4. Use the heart control to save a song. Open **Saved** in the navigation to create playlists.
+5. Open **Up next** to choose, move, or remove tracks. It sits beside the page on wide screens and behind the queue button on smaller ones.
 
 The server uses the installed yt-dlp to resolve a progressive M4A or WebM audio stream.
 Audio passes through Muzik, with byte ranges for seeking. Streaming does not save an

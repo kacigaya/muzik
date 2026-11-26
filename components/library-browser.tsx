@@ -116,7 +116,7 @@ export function LibraryBrowser() {
         </div>
         <div className="flex items-center gap-2">
           {entries && <Badge variant="secondary" className="font-mono tabular-nums">{entries.length}</Badge>}
-          <Button variant="outline" size="sm" render={<Link href="/" />}>Back to search</Button>
+          <Button variant="outline" size="sm" render={<Link href="/" />}>Back to Home</Button>
         </div>
       </div>
 

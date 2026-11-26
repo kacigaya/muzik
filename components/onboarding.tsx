@@ -34,7 +34,7 @@ export function Onboarding({ suggestion }: { suggestion: string }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-14">
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-14">
       <div className="w-full max-w-lg">
         <div className="mb-8 text-center">
           <Music2 aria-hidden="true" className="mx-auto mb-4 size-8" />
