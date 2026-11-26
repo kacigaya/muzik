@@ -5,14 +5,14 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bell, BellOff, Disc3, Download, ListPlus, Music2, Play, RefreshCw, TriangleAlert } from "lucide-react";
 import { Artwork } from "@/components/artwork";
-import { isActive, isCompleted, useDownloads } from "@/components/downloads-provider";
+import { useDownloads } from "@/components/downloads-provider";
 import { useListening } from "@/components/listening-provider";
 import { loadTracks, PageHeader, TrackList } from "@/components/music-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { totalMinutes, trustedArtwork } from "@/lib/music";
+import { isActive, isCompleted, totalMinutes, trustedArtwork } from "@/lib/music";
 import { PLAYLIST_ID } from "@/lib/source-ids";
 import type { SearchItem } from "@/lib/types";
 

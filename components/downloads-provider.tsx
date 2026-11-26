@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { newlyCompleted } from "@/lib/completed";
+import { isActive } from "@/lib/music";
 import { AUDIO_FORMATS, type AudioFormat, type DownloadJob, type JobStatus, type SearchItem, type Subscription } from "@/lib/types";
 import { toastManager } from "@/components/ui/toast";
 
@@ -10,6 +11,7 @@ type DownloadsContext = {
   jobs: DownloadJob[];
   subscriptions: Subscription[];
   navidromeUrl: string;
+  setNavidromeUrl: (url: string) => void;
   jobFor: (item: Source) => DownloadJob | undefined;
   download: (item: SearchItem) => Promise<boolean>;
   act: (job: DownloadJob, action: "cancel" | "retry") => Promise<void>;
@@ -24,23 +26,6 @@ export function useDownloads() {
   const context = useContext(Context);
   if (!context) throw new Error("DownloadsProvider is required.");
   return context;
-}
-
-export function isActive(job: DownloadJob) {
-  return job.status === "queued" || job.status === "running" || job.status === "retrying";
-}
-
-export function isCompleted(job: DownloadJob) {
-  return job.status === "completed" || job.status === "completed_with_warnings";
-}
-
-// Navidrome filters albums by name and songs by title; unmatched titles leave the list unfiltered.
-// Downloaded playlists become album folders, so use the album view for them.
-export function navidromeLink(job: DownloadJob, baseUrl: string) {
-  if (!baseUrl) return null;
-  const resource = job.kind === "song" ? "song" : "album";
-  const filter = job.kind === "song" ? { title: job.title } : { name: job.title };
-  return `${baseUrl}/app/#/${resource}?filter=${encodeURIComponent(JSON.stringify(filter))}`;
 }
 
 function sourceKey(item: Source) {
@@ -199,7 +184,7 @@ export function DownloadsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ jobs, subscriptions, navidromeUrl, jobFor, download, act, clearFinished, isFollowing, toggleFollow, requestInLidarr }),
+    () => ({ jobs, subscriptions, navidromeUrl, setNavidromeUrl, jobFor, download, act, clearFinished, isFollowing, toggleFollow, requestInLidarr }),
     [jobs, subscriptions, navidromeUrl, jobFor, download, act, clearFinished, isFollowing, toggleFollow, requestInLidarr],
   );
   return <Context value={value}>{children}</Context>;

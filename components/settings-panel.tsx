@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useDownloads } from "@/components/downloads-provider";
 import { ArrowLeft, Check } from "lucide-react";
 import { AUDIO_FORMATS, type AudioFormat } from "@/lib/types";
 import type { LyricsSettings, PublicLidarrSettings, PublicNavidromeSettings } from "@/lib/settings";
@@ -53,7 +53,7 @@ export function SettingsPanel({
   lidarr: PublicLidarrSettings;
   defaultFormat: AudioFormat;
 }) {
-  const router = useRouter();
+  const { setNavidromeUrl: publishNavidromeUrl } = useDownloads();
   const [format, setFormat] = useState<AudioFormat>(defaultFormat);
   const [navidrome, setNavidrome] = useState(initialNavidrome);
   const [navidromeUrl, setNavidromeUrl] = useState(initialNavidrome.url);
@@ -123,8 +123,8 @@ export function SettingsPanel({
       setApiKey("");
       setPassword("");
       setNavidromeMessage(clearAuth ? "Navidrome credentials removed." : "Navidrome settings saved.");
-      // Refresh the server-rendered nav so it picks up the saved URL.
-      router.refresh();
+      // The shell lives in the root layout, so it learns the saved URL from here instead of a refresh.
+      publishNavidromeUrl(data.navidrome.url);
     } catch (cause) {
       setNavidromeError(cause instanceof Error ? cause.message : "Could not save Navidrome settings.");
     } finally {

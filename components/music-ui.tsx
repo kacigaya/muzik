@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { AudioLines, Check, Clock, Disc3, Download, Ellipsis, ExternalLink, Heart, ListMusic, ListPlus, Play, Plus, X } from "lucide-react";
 import { Artwork } from "@/components/artwork";
-import { isActive, isCompleted, navidromeLink, useDownloads } from "@/components/downloads-provider";
+import { useDownloads } from "@/components/downloads-provider";
 import { useListening } from "@/components/listening-provider";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSub, MenuSubPopup, MenuSubTrigger, MenuTrigger } from "@/components/ui/menu";
 import { Spinner } from "@/components/ui/spinner";
 import { toastManager } from "@/components/ui/toast";
-import { formatTime } from "@/lib/music";
+import { formatTime, isActive, isCompleted, navidromeLink } from "@/lib/music";
 import type { SearchItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

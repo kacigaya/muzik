@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatRemaining, formatTime, totalMinutes, trustedArtwork } from "../lib/music.ts";
+import { formatRemaining, formatTime, isActive, isCompleted, isPaused, navidromeLink, totalMinutes, trustedArtwork } from "../lib/music.ts";
+
+test("job state helpers group statuses and build Navidrome links", () => {
+  assert.deepEqual(["queued", "running", "retrying", "completed", "failed"].map((status) => isActive({ status })), [true, true, true, false, false]);
+  assert.deepEqual(["completed", "completed_with_warnings", "failed", "cancelled"].map((status) => isCompleted({ status })), [true, true, false, false]);
+  assert.equal(navidromeLink({ kind: "song", title: "A & B" }, ""), null);
+  assert.equal(navidromeLink({ kind: "song", title: "A & B" }, "https://nd.example"), `https://nd.example/app/#/song?filter=${encodeURIComponent('{"title":"A & B"}')}`);
+  assert.equal(navidromeLink({ kind: "playlist", title: "Mix" }, "https://nd.example"), `https://nd.example/app/#/album?filter=${encodeURIComponent('{"name":"Mix"}')}`);
+});
+
+test("a new track starts paused until its own audio element reports playing", () => {
+  assert.equal(isPaused({ key: "", paused: true }, "abc-1"), true);
+  assert.equal(isPaused({ key: "abc-1", paused: false }, "abc-1"), false);
+  assert.equal(isPaused({ key: "abc-1", paused: false }, "abc-2"), true);
+  assert.equal(isPaused({ key: "abc-1", paused: true }, "abc-1"), true);
+});
 
 test("collection links only load artwork from YouTube Music image hosts", () => {
   assert.equal(trustedArtwork("https://i.ytimg.com/vi/x/hq.jpg"), "https://i.ytimg.com/vi/x/hq.jpg");

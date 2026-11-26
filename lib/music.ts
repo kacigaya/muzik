@@ -1,3 +1,27 @@
+import type { DownloadJob } from "./types.ts";
+
+export function isActive(job: Pick<DownloadJob, "status">) {
+  return job.status === "queued" || job.status === "running" || job.status === "retrying";
+}
+
+export function isCompleted(job: Pick<DownloadJob, "status">) {
+  return job.status === "completed" || job.status === "completed_with_warnings";
+}
+
+// Navidrome filters albums by name and songs by title; unmatched titles leave the list unfiltered.
+// Downloaded playlists become album folders, so use the album view for them.
+export function navidromeLink(job: Pick<DownloadJob, "kind" | "title">, baseUrl: string) {
+  if (!baseUrl) return null;
+  const resource = job.kind === "song" ? "song" : "album";
+  const filter = job.kind === "song" ? { title: job.title } : { name: job.title };
+  return `${baseUrl}/app/#/${resource}?filter=${encodeURIComponent(JSON.stringify(filter))}`;
+}
+
+// Each track mounts a new audio element, so play state recorded for another track means paused.
+export function isPaused(playback: { key: string; paused: boolean }, currentKey: string) {
+  return playback.key !== currentKey || playback.paused;
+}
+
 export function formatTime(seconds: number | null | undefined): string | null {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
   const whole = Math.floor(seconds);

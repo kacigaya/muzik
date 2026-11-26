@@ -6,7 +6,7 @@ import { Artwork } from "@/components/artwork";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { listeningTrack, MAX_QUEUE, restoreQueue, updateQueue, type ListeningCommand, type ListeningLibrary, type PlaybackQueue, type QueueAction } from "@/lib/listening";
-import { formatTime } from "@/lib/music";
+import { formatTime, isPaused } from "@/lib/music";
 import type { SearchItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -61,9 +61,8 @@ export function ListeningProvider({ children }: { children: React.ReactNode }) {
   const writes = useRef(Promise.resolve());
   const audio = useRef<HTMLAudioElement>(null);
   const current = queue.tracks[queue.index] ?? null;
-  // A new audio element starts paused, so state from the previous track never leaks into the next one.
   const playbackKey = current ? `${current.sourceId}-${revision}` : "";
-  const paused = playback.key !== playbackKey || playback.paused;
+  const paused = isPaused(playback, playbackKey);
 
   useEffect(() => {
     let active = true;
@@ -137,7 +136,12 @@ export function ListeningProvider({ children }: { children: React.ReactNode }) {
     if (action.type === "select" || (action.type === "remove" && action.index === queue.index)) restart();
   }, [queue.index, restart]);
 
-  const resume = useCallback(() => { void audio.current?.play().catch(() => setStreamError("Press Play to start audio.")); }, []);
+  // A pause or track change interrupts play() with AbortError; only a blocked autoplay needs the hint.
+  const resume = useCallback(() => {
+    void audio.current?.play().catch((cause: unknown) => {
+      if (cause instanceof DOMException && cause.name === "NotAllowedError") setStreamError("Press Play to start audio.");
+    });
+  }, []);
   const pause = useCallback(() => audio.current?.pause(), []);
   const toggle = useCallback(() => { if (audio.current?.paused) resume(); else pause(); }, [resume, pause]);
   const seek = useCallback((seconds: number) => { if (audio.current) audio.current.currentTime = seconds; }, []);
@@ -248,11 +252,11 @@ export function PlayerBar() {
       </div>
 
       <div className="flex items-center justify-end gap-1">
-        <div className="hidden w-32 items-center gap-1 xl:flex">
+        <div className="flex items-center gap-1 max-sm:hidden lg:w-32">
           <Button size="icon-sm" variant="ghost" aria-pressed={muted} aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted((value) => !value)}>
             {muted || volume === 0 ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
           </Button>
-          <input type="range" min={0} max={100} step={5} value={muted ? 0 : Math.round(volume * 100)} onChange={(event) => { setVolume(Number(event.target.value) / 100); setMuted(false); }} aria-label="Volume" className="h-1 min-w-0 flex-1 cursor-pointer accent-foreground" />
+          <input type="range" min={0} max={100} step={5} value={muted ? 0 : Math.round(volume * 100)} onChange={(event) => { setVolume(Number(event.target.value) / 100); setMuted(false); }} aria-label="Volume" className="hidden h-1 min-w-0 flex-1 cursor-pointer accent-foreground lg:block" />
         </div>
         <Button size="icon" className="rounded-full before:rounded-full lg:hidden" aria-label={playLabel} onClick={toggle}><PlayIcon aria-hidden="true" className="fill-current" /></Button>
         <Button size="icon" variant="ghost" className="lg:hidden" disabled={queue.index === queue.tracks.length - 1} aria-label="Next track" onClick={next}><SkipForward aria-hidden="true" className="fill-current" /></Button>

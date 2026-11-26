@@ -8,7 +8,7 @@ import { Bell, Clock, Disc3, Download, GalleryVerticalEnd, Github, Heart, House,
 import { Moon, Sun } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { Artwork } from "@/components/artwork";
-import { isActive, isCompleted, navidromeLink, useDownloads } from "@/components/downloads-provider";
+import { useDownloads } from "@/components/downloads-provider";
 import { GalleryVerticalEndIcon } from "@/components/icons/gallery-vertical-end";
 import { SettingsIcon } from "@/components/icons/settings";
 import { PlayerBar, UpNext, useListening } from "@/components/listening-provider";
@@ -21,7 +21,7 @@ import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/prog
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { isMusicLink } from "@/lib/link";
-import { formatRemaining } from "@/lib/music";
+import { formatRemaining, isActive, isCompleted, navidromeLink } from "@/lib/music";
 import type { DownloadJob, JobStatus, SearchItem, SearchResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       <p className="sr-only" role="status" aria-live="polite">
-        {running ? `${running.title}: downloading, ${running.progress}%.` : active ? `${active} downloads queued.` : ""}
+        {running ? `${running.title}: downloading.` : active ? `${active} downloads queued.` : ""}
       </p>
     </div>
   );
@@ -247,7 +247,7 @@ function SearchForm({ initial }: { initial: string }) {
       }}
     >
       <label htmlFor="music-search" className="sr-only">Search music</label>
-      <Autocomplete items={suggestions} value={query} onValueChange={change} itemToStringValue={(item: SearchItem) => item.title} mode="none" autoHighlight>
+      <Autocomplete items={suggestions} value={query} onValueChange={change} itemToStringValue={(item: SearchItem) => item.title} mode="none">
         <AutocompleteInput
           id="music-search"
           startAddon={<Search aria-hidden="true" />}
@@ -362,9 +362,9 @@ function DownloadsList() {
                 </div>
                 {isActive(job) && <Button variant="ghost" size="icon-xs" aria-label={`Cancel ${job.title}`} onClick={() => void act(job, "cancel")}><X aria-hidden="true" /></Button>}
                 {(job.status === "failed" || job.status === "cancelled") && <Button variant="ghost" size="icon-xs" aria-label={`Retry ${job.title}`} onClick={() => void act(job, "retry")}><RefreshCw aria-hidden="true" /></Button>}
-                {job.status === "completed" && (href
-                  ? <Button variant="ghost" size="icon-xs" render={<a href={href} target="_blank" rel="noreferrer" />} aria-label={`Open ${job.title} in Navidrome`}><Download aria-hidden="true" className="text-success-foreground" /></Button>
-                  : <span role="img" aria-label="Completed" className="flex size-6 items-center justify-center"><Download aria-hidden="true" className="size-3.5 text-success-foreground" /></span>)}
+                {isCompleted(job) && (href
+                  ? <Button variant="ghost" size="icon-xs" render={<a href={href} target="_blank" rel="noreferrer" />} aria-label={`Open ${job.title} in Navidrome`}><Download aria-hidden="true" className={job.status === "completed" ? "text-success-foreground" : "text-warning-foreground"} /></Button>
+                  : <span role="img" aria-label={job.status === "completed" ? "Completed" : "Completed with warnings"} className="flex size-6 items-center justify-center"><Download aria-hidden="true" className={cn("size-3.5", job.status === "completed" ? "text-success-foreground" : "text-warning-foreground")} /></span>)}
               </div>
               {(job.status !== "completed" || job.format === "flac" || job.itemCount) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 ps-13">
