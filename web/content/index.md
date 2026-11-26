@@ -15,7 +15,7 @@ read. It has no accounts and no database.
 - Search songs, albums, and playlists from YouTube Music, with live suggestions while typing.
 - Paste a link instead of searching: YouTube, YouTube Music, SoundCloud, or Bandcamp. A
   `watch?v=…&list=…` link offers both the single song and the full collection.
-- Expand an album or playlist to see its tracks and queue only the ones you want.
+- Open an album or playlist to see its tracks, then download all of them or only the ones you want.
 - Follow an album or playlist so Muzik re-checks it on a schedule.
 - Watch a serial queue with live progress, speed, and time remaining, plus cancel and
   retry. Queue state is written to disk and recovered after a restart.

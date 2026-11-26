@@ -1,19 +1,13 @@
-import { Music2 } from "lucide-react";
-import { SiteNav } from "@/components/site-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <SiteNav navidromeUrl="" logoHref="/" />
-      <main className="flex-1 px-4 py-14 sm:py-20" id="main-content" tabIndex={-1}>
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center text-center">
-          <Music2 aria-hidden="true" className="mb-4 size-8 text-muted-foreground" />
-          <Skeleton className="h-12 w-full max-w-xl rounded-xl sm:h-14" />
-          <Skeleton className="mt-4 h-5 w-full max-w-md" />
-          <Skeleton className="mt-8 h-12 w-full max-w-xl rounded-xl" />
-        </div>
-      </main>
+    <div className="px-3 pt-4 sm:px-5" role="status" aria-label="Loading">
+      <Skeleton className="h-40 w-full rounded-xl" />
+      <Skeleton className="mt-10 h-5 w-40" />
+      <div className="mt-3 grid grid-cols-2 gap-4 @xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="aspect-square w-full rounded-lg" />)}
+      </div>
     </div>
   );
 }

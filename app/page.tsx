@@ -1,10 +1,17 @@
+import { Suspense } from "react";
 import { MuzikApp } from "@/components/muzik-app";
-import { musicDir, publicLidarrSettings, publicNavidromeSettings } from "@/lib/settings";
-import { defaultFormat } from "@/lib/validation";
+import { Skeleton } from "@/components/ui/skeleton";
+import { musicDir, publicLidarrSettings } from "@/lib/settings";
 
-export default async function Page() {
-  const [navidrome, lidarr] = await Promise.all([publicNavidromeSettings(), publicLidarrSettings()]);
-  const lidarrEnabled = lidarr.enabled && Boolean(lidarr.url) && lidarr.apiKeyConfigured;
-  const downloadsConfigured = Boolean(await musicDir());
-  return <MuzikApp downloadsConfigured={downloadsConfigured} navidromeUrl={navidrome.url} lidarrEnabled={lidarrEnabled} defaultFormat={defaultFormat()} />;
+async function Home() {
+  const [lidarr, library] = await Promise.all([publicLidarrSettings(), musicDir()]);
+  return <MuzikApp lidarrEnabled={lidarr.enabled && Boolean(lidarr.url) && lidarr.apiKeyConfigured} downloadsConfigured={Boolean(library)} />;
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="p-5"><Skeleton className="h-40 w-full rounded-xl" /></div>}>
+      <Home />
+    </Suspense>
+  );
 }

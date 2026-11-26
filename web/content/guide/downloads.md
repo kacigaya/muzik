@@ -10,11 +10,11 @@ description: How the Muzik queue runs jobs, follows collections, and recovers af
 Streaming and downloads use separate queues. **Play** starts a playback queue. The
 **Download** control saves audio files with the existing download queue.
 
-1. Search for songs, albums, or playlists on the home page.
-2. Select **Play**, or add songs to the playback queue.
-3. Use the heart control to save songs in **Saved music**.
-4. Create a playlist in **Saved music**, then use the playlist control on songs to add them.
-5. Expand **Playback queue** to choose, move, or remove tracks.
+1. Search for songs, albums, or playlists from the search field at the top of every page.
+2. Select **Play**, or open the `…` menu on a song and select **Add to queue**.
+3. Use the heart control to save songs in **Saved**.
+4. Create a playlist in **Saved**, then open the `…` menu on a song and select **Add to playlist**.
+5. Open **Up next** to choose, move, or remove tracks. **Downloads** sits in the same panel.
 
 Playback continues across Muzik pages. The browser restores its queue paused after a
 reload. Likes and playlists are shared on the private server and saved in
@@ -51,7 +51,7 @@ threshold, and `0` disables the check.
 
 ## Following a collection
 
-Any album or playlist can be followed from its search result. Muzik re-queues it every
+Any album or playlist can be followed from its top search result or its own page. Muzik re-queues it every
 `intervalHours` (24 by default) and yt-dlp's download archive skips everything already on
 disk, so a sync only pulls what was added since the last run. The scheduler runs in the
 server process and also catches up once at startup, so a machine that was off overnight
