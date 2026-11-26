@@ -2,6 +2,7 @@ package app.muzik.ui
 
 import android.app.Application
 import android.content.ComponentName
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackException
@@ -91,6 +92,14 @@ class MuzikViewModel(application: Application) : AndroidViewModel(application) {
     val lyrics: StateFlow<Loadable<Lyrics?>> = _lyrics.asStateFlow()
     private var lyricsFor: String? = null
 
+    @VisibleForTesting internal var searchMusic: suspend (String) -> SearchResults = YouTube::search
+    @VisibleForTesting internal var collectionTracks: suspend (MusicCollection) -> List<Track> = YouTube::tracks
+    @VisibleForTesting internal var findLyrics: suspend (Track) -> Lyrics? = app.lyrics::lyrics
+
+    @VisibleForTesting internal fun showPlayer(state: PlayerState) {
+        _player.value = state
+    }
+
     val likes = dao.likes().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val likedIds = dao.likedIds().map { it.toSet() }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val playlists = dao.playlists().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -101,7 +110,11 @@ class MuzikViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playlistTracks(id: Long) = dao.playlistTracks(id)
 
-    init {
+    private var connecting = false
+
+    fun connect() {
+        if (connecting) return
+        connecting = true
         viewModelScope.launch {
             val token = SessionToken(app, ComponentName(app, PlaybackService::class.java))
             val connected = MediaController.Builder(app, token).buildAsync().await()
@@ -144,7 +157,7 @@ class MuzikViewModel(application: Application) : AndroidViewModel(application) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             _search.value = Loadable.Loading
-            _search.value = load { YouTube.search(text) }
+            _search.value = load { searchMusic(text) }
         }
     }
 
@@ -152,7 +165,7 @@ class MuzikViewModel(application: Application) : AndroidViewModel(application) {
         collectionJob?.cancel()
         collectionJob = viewModelScope.launch {
             _collection.value = Loadable.Loading
-            _collection.value = load { YouTube.tracks(collection) }
+            _collection.value = load { collectionTracks(collection) }
         }
     }
 
@@ -161,7 +174,7 @@ class MuzikViewModel(application: Application) : AndroidViewModel(application) {
         lyricsFor = track.id
         viewModelScope.launch {
             _lyrics.value = Loadable.Loading
-            val result = load { app.lyrics.lyrics(track) }
+            val result = load { findLyrics(track) }
             if (lyricsFor == track.id) _lyrics.value = result
         }
     }

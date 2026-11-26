@@ -62,7 +62,17 @@ android {
     }
 
     testOptions {
-        unitTests.isReturnDefaultValues = true
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+            all {
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                // Recording is explicit. Normal test runs compare against the committed reference images.
+                val record = providers.gradleProperty("roborazzi.test.record").getOrElse("false")
+                it.systemProperty("roborazzi.test.record", record)
+                it.systemProperty("roborazzi.test.verify", (record != "true").toString())
+            }
+        }
     }
 }
 
@@ -101,4 +111,10 @@ dependencies {
     implementation(libs.newpipe.extractor)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

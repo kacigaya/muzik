@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.room.Room
+import androidx.work.Configuration
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -27,7 +28,9 @@ import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-class MuzikApp : Application() {
+class MuzikApp : Application(), Configuration.Provider {
+    override val workManagerConfiguration: Configuration get() = Configuration.Builder().build()
+
     lateinit var database: MuzikDatabase
         private set
     lateinit var http: OkHttpClient

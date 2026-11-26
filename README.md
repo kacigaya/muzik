@@ -32,6 +32,8 @@ Muzik searches, streams, and downloads YouTube Music on the device. There is no 
 
 The APK is in `app/build/outputs/apk/debug/`.
 
+Screenshot tests run with the unit tests. They compare the screens with the images in `app/src/test/screenshots/`. To record new images after an intended change, add `-Proborazzi.test.record=true`.
+
 Release builds are signed when `MUZIK_KEYSTORE`, `MUZIK_KEYSTORE_PASSWORD`, `MUZIK_KEY_ALIAS`, and `MUZIK_KEY_PASSWORD` are set. You can also set them as Gradle properties (`muzik.keystore` and so on).
 
 ## Limits
